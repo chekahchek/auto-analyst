@@ -53,3 +53,5 @@ build/
 *.ipynb
 *.lock
 *.csv
+secret.ini
+docs/superpowers/*

@@ -4,25 +4,16 @@
 
 *Goal: A running FastAPI app with Postgres, logging, and test harness.*
 
-- [ ] **1.1** Initialise FastAPI project structure under `backend/`  
-  `main.py`, `config.py`, `dependencies.py`, routers package, services package.
+- [x] **1.1** Initialise FastAPI project structure under `backend/`  
 
-- [ ] **1.2** Add core dependencies to `pyproject.toml`  
-  FastAPI, Uvicorn, SQLModel (or SQLAlchemy + Pydantic), asyncpg/psycopg2, LangGraph, LangChain, Jinja2, Plotly, Pandas, structlog, prometheus-client, opentelemetry-api/sdk.
+- [x] **1.2** Add core dependencies to `pyproject.toml`  
 
-- [ ] **1.3** Set up `docker-compose.yml` with Postgres service  
-  Include healthcheck and persistent volume.
+- [x] **1.3** Set up `docker-compose.yml` with Postgres service  
 
-- [ ] **1.4** Add `config.py` with Pydantic Settings  
+- [x] **1.4** Add `config.py` with Pydantic Settings  
   DB URL, LLM API keys, cost budget default, file storage path, environment.
 
-- [ ] **1.5** Wire `structlog` for JSON structured logging  
-  Every request and graph node entry/exit should emit a log line.
-
-- [ ] **1.6** Add pytest harness with `pytest-asyncio` and a test `client` fixture  
-  Use `httpx.AsyncClient` + `lifespan` manager.
-
-- [ ] **1.7** Add pre-commit hooks (ruff, mypy) if not already present.
+- [x] **1.5** Add pre-commit hooks (ruff, mypy) if not already present.
 
 ---
 
