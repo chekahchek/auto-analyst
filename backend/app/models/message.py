@@ -24,8 +24,6 @@ class Message(UUIDBase, SQLModel, table=True):
     session_id: UUID = Field(foreign_key="session.id", index=True)
     role: MessageRole
     content: str
-    created_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc)
-    )
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     session: Optional["Session"] = Relationship(back_populates="messages")

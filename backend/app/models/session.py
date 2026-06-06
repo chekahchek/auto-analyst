@@ -17,10 +17,10 @@ class Session(UUIDBase, TimestampBase, SQLModel, table=True):
 
     dataset_id: UUID = Field(foreign_key="dataset.id", index=True)
     dashboard_path: Optional[str] = None
-    cost_spent: Decimal = Field(default=Decimal("0.00"), max_digits=10, decimal_places=4)
-    created_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc)
+    cost_spent: Decimal = Field(
+        default=Decimal("0.00"), max_digits=10, decimal_places=4
     )
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     dataset: Optional["Dataset"] = Relationship(back_populates="sessions")
     messages: List["Message"] = Relationship(back_populates="session")

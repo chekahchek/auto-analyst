@@ -13,8 +13,6 @@ class User(UUIDBase, TimestampBase, SQLModel, table=True):
     __tablename__ = "user"
 
     email: str = Field(index=True, unique=True)
-    created_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc)
-    )
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     datasets: List["Dataset"] = Relationship(back_populates="user")
