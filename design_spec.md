@@ -5,12 +5,65 @@ A self-improving agentic system for data analysis. The user uploads a CSV, an ag
 
 ## Objectives
 
-* **End-to-end analysis:** CSV $\rightarrow$ hypotheses $\rightarrow$ evidence $\rightarrow$ storytelling dashboard.
+* **End-to-end analysis:** CSV → hypotheses → evidence → storytelling dashboard.
 * **Self-improving:** domain knowledge from past sessions loads into future ones.
 * **Reviewable:** promoted knowledge is auditable, versioned, rollback-able.
 
 
-## Skill registry
+## API Contract
+
+| Endpoint | Method | Description |
+|---|---|---|
+| `/datasets` | `POST` | Upload CSV. Creates dataset, runs profiler. Returns `dataset_id`. |
+| `/datasets` | `GET` | List user's datasets with profile metadata. |
+| `/datasets/{id}/sessions` | `POST` | Create a chat session for a dataset. Returns `session_id`; analysis starts asynchronously. |
+| `/sessions/{id}` | `GET` | Get session status + latest dashboard HTML if ready. |
+| `/sessions/{id}/chat` | `POST` | Follow-up question. Appends to conversation, re-runs relevant graph nodes. |
+
+
+### Runtime Flow
+
+```mermaid
+sequenceDiagram
+    actor U as User
+    participant A as AnalystAgent
+    participant P as Profiler
+    participant S as Skills
+    participant C as CriticAgent
+
+    U->>A: Upload CSV
+    A->>P: Profile dataset
+    Note over P: Infer domain and data type
+    A->>A: Match profile → skill triggers
+    A->>S: Load relevant skills
+
+    loop hypothesis cycle
+        A->>A: hypothesis_generator
+        A->>A: analyzer (generate Python)
+        A->>A: Execute in sandbox
+        opt external context needed
+            A->>S: Load web research skill
+            A->>A: Gather external context
+        end
+        A->>A: Collect evidence
+    end
+
+    A->>S: Load storytelling skill
+    A->>A: dashboard_builder (Jinja2 HTML)
+    A->>C: Request review
+    C->>C: Score quality
+    C-->>A: Approve or diff
+
+    alt needs revision (max 3, abort if stall)
+        A->>A: Revise dashboard
+        A->>C: Re-review
+    end
+
+    A-->>U: Deliver dashboard
+```
+
+
+## Skill Registry
 
 Skills are stored in a separate repository for more flexible access control, allowing users to submit MR without affecting the core agent capabilities.
 
@@ -25,26 +78,87 @@ Three types of skills:
 ```
 skills/
   core/
-    profile-data.md          # Deduces domain + type of data
-    capture-memories.md      # when and what to write to memory
-    web-search.md            # triggers: [benchmark, industry, external, news]
+    profile-data.md
+    capture-memories.md
+    web-search.md
   analytical/
-    time-series.md           # triggers: [date, timestamp, trend, seasonality, forecast]
-    tabular-eda.md           # triggers: [numeric, distribution, correlation, aggregation]
-    free-text.md             # triggers: [text, comment, review, sentiment, topic]
+    time-series.md
+    tabular-eda.md
+    free-text.md
     storytelling-dashboard.md
   domain-knowledge/
-    finance.md               # triggers: [revenue, margin, ar, ap, cogs, ...]
+    finance.md
     ops.md
     growth.md
+```
 
+## Database Model
+
+```mermaid
+erDiagram
+    users ||--o{ datasets : "owns"
+    datasets ||--o{ sessions : "has"
+    sessions ||--o{ messages : "contains"
+
+    users {
+        uuid id PK
+        string email
+        timestamp created_at
+    }
+
+    datasets {
+        uuid id PK
+        uuid user_id FK
+        string filename
+        string original_filename
+        string storage_path
+        string domain
+        string data_type
+        jsonb profile_json
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    sessions {
+        uuid id PK
+        uuid dataset_id FK
+        string dashboard_path
+        decimal cost_spent
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    messages {
+        uuid id PK
+        uuid session_id FK
+        enum role "user | assistant | system | tool"
+        text content
+        timestamp created_at
+    }
 ```
 
 
+## Observability & Cost Controls
 
-## Memory model
+- **Structured logging:** `structlog` JSON. Every node logs entry/exit with timing. Every LLM call logs model, tokens, cost.
+- **Cost tracking:** Per-session spend accumulator. Hard-stop if max budget exceeded (configurable, default $1.00).
+- **Tracing:** OpenTelemetry spans across FastAPI → LangGraph → LLM calls.
+- **Metrics:** Prometheus counters for sessions, deliveries, errors by type, avg tokens/cost per session.
 
-Memories are specific to domain knowledge only, providing additional context that aren't currently captured in skills. Memories will perodically be promoted to skills (see self-improvement loop)
+## Testing Strategy
+
+| Layer | Approach |
+|---|---|
+| **Unit** | pytest. Skill registry parsing, HTML rendering, graph nodes in isolation (mocked LLM). |
+| **Integration** | Full graph end-to-end with frozen CSV fixtures + cached LLM responses. Assert expected HTML sections. |
+| **Eval / Regression** | `tests/eval/` with frozen CSVs and expected dashboard attributes. Run on PRs. |
+| **Cost guard** | Mock LLM client by default. Real calls only in eval, gated by env var. |
+
+
+
+## Memory Model *(Future — not in MVP)*
+
+Memories are domain-specific context not yet captured in skills. They are periodically promoted to skills via the self-improvement loop.
 
 ```yaml
 id: mem_01HXYZ...
@@ -52,86 +166,10 @@ domain: finance
 content: "..."
 created_at: timestamp
 status: active | inactive
-
 ```
 
 
-## Context layers
-
-### System Prompt
-
-- Agent identity 
-- Skill Fontmatter 
-- Skill index
-
-
-### Start of Session - Loaded Once on CSV Upload
-
-1. Skill to profile data $\rightarrow$ Deduce domain and type of data (Time series, Text, etc.)
-2. Load the relevant analytical skill
-3. Load the relevant domain knowledge
-4. Load the memories for the particular domain
-
-Tool calls and results from them are dropped from the context after initialisation to reduce context length.
-
-
-### Conversation - Across turns in the same session
-
-- Final agent responses including the hypotheses, evidence summaries, dashboard artifact
-
-On follow-up questions, skills and memories are already in context – no reload.
-
-
-
-## Runtime flow
-
-```mermaid
-sequenceDiagram
-    actor U as User
-    participant A as AnalystAgent
-    participant S as Skills
-    participant M as Memory
-    participant C as CriticAgent
-
-    U->>A: Upload CSV
-    A->>S: Load profiling skill
-    A->>A: Profile dataset
-    Note over A: Infer domain and data type
-    A->>S: Find matching skills
-    A->>S: Load analytical skill
-    A->>S: Load domain knowledge
-    A->>M: Load relevant memories
-
-    loop hypothesis cycle
-        A->>A: Form hypothesis
-        A->>A: Analyze data
-        opt external context needed
-            A->>S: Load web research skill
-            A->>A: Gather external context
-        end
-    end
-
-    A->>S: Load storytelling skill
-    A->>A: Build dashboard
-    A->>C: Request review
-    C->>S: Load critique skill
-    C-->>A: Approve or revise
-
-    alt needs revision (up to 3 iterations)
-        A->>A: Revise dashboard
-        A->>C: Re-review
-    end
-
-    A-->>U: Deliver dashboard
-    A->>S: Load memory capture skill
-    A->>M: Store domain memories
-```
-
-Critic loop: max 3 iterations. Critic returns a concrete diff, not vague feedback. Aborts early if successive dashboards don't improve critic score delta.
-
----
-
-## Self-improvement loop
+## Self-Improvement Loop *(Future — not in MVP)*
 
 ```mermaid
 flowchart LR
@@ -145,8 +183,50 @@ flowchart LR
     SR -. regression .-> REV[git revert]
 ```
 
-1. **Scheduled job:** AutoDreamAgent clusters domain memories $\rightarrow$ opens MR. MR body lists `source_memory_ids`.
-2. **Eval CI:** runs frozen benchmark on MR diff, posts delta as comment.
-3. **Post-merge job:** parses MR body $\rightarrow$ archives promoted memory IDs.
+1. **Scheduled job:** AutoDreamAgent clusters domain memories → opens MR listing `source_memory_ids`.
+2. **Eval CI:** runs frozen benchmark on MR diff, posts delta.
+3. **Post-merge job:** archives promoted memory IDs.
 
-Rollback = git revert. Archived memories stay archived; useful ones re-surface in future sessions.
+Rollback = git revert. Archived memories stay archived.
+
+
+## AWS Architecture *(Future — not in MVP)*
+
+**Main app**
+
+```mermaid
+flowchart LR
+    Browser -->|presigned POST| S3_CSV[(S3 · CSV Storage)]
+    Browser -->|API requests| AppRunner[App Runner]
+    AppRunner -->|sessions / turns / memories| RDS[(Aurora Serverless v2\nPostgres)]
+    AppRunner -->|load & cache skills| S3_Skills[(S3 · Skills)]
+    AppRunner -->|invoke| Lambda[Lambda\nCode Sandbox]
+    Lambda -->|read CSV\nwrite artifacts| S3_CSV
+    SSM{{SSM Parameter Store}} -.->|secrets| AppRunner
+```
+
+**Self-improvement loop**
+
+```mermaid
+flowchart LR
+    EventBridge([EventBridge\nweekly cron]) -->|trigger| ECS[ECS Fargate\nAutoDreamAgent]
+    RDS[(Aurora Serverless v2\nPostgres)] -->|read memories| ECS
+    ECS -->|archive promoted memories| RDS
+    ECS -->|open MR| GitHub[GitHub\nSkills Repo]
+    GitHub -->|CI passes + merge| Actions[GitHub Actions]
+    Actions -->|sync skills| S3_Skills[(S3 · Skills)]
+    Actions -->|invalidate cache| AppRunner[App Runner\nFastAPI]
+    SSM{{SSM Parameter Store}} -.->|secrets| ECS
+```
+
+- **App Runner** — hosts the FastAPI backend as a container
+- **S3** — two purposes:
+  - *CSV storage:* browser uploads directly via presigned POST
+  - *Skills storage:* skill markdown files synced from the skills repo via GitHub Actions on merge. Backend caches skills in memory with a short TTL; a post-merge webhook hits `/admin/invalidate-skills-cache` to force refresh. No redeployment needed on skill updates.
+- **Aurora Serverless v2 (Postgres)** — Store datasets (metadata + profile), sessions, conversation turns, memories. Use to re-create prompt during follow-up questions.
+- **Lambda (container image)** — sandboxed code execution
+- **EventBridge Scheduler** — weekly cron that triggers the AutoDreamAgent as a one-off ECS Fargate task. Reads memories from RDS, clusters them, opens a GitHub MR to the skills repo.
+- **SSM Parameter Store** — stores Anthropic API key, DB credentials, GitHub token. Free tier; no need for Secrets Manager at this scale.
+
+## Open questions
+- Should intermediate artifacts (dataframes, generated code, plotly figures) be persisted to disk to enable analytical follow-ups (e.g. "show me the raw data behind chart 3")? For MVP they are treated as transient agent working memory. Revisit post-MVP.
