@@ -5,6 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "asyncpg>=0.30.0",
     "fastapi>=0.136.3",
     "langchain-anthropic>=1.4.3",
     "langchain-openai>=1.2.2",
@@ -12,6 +13,7 @@ dependencies = [
     "numpy>=2.4.6",
     "pandas>=3.0.3",
     "pydantic-settings>=2.0",
+    "sqlmodel>=0.0.24",
     "uvicorn>=0.49.0",
 ]
 
@@ -19,6 +21,7 @@ dependencies = [
 dev = [
     "ipykernel>=7.2.0",
     "jupyterlab>=4.5.7",
+    "pytest-asyncio>=0.25.0",
     "python-dotenv>=1.2.2",
     "ruff>=0.15.16",
 ]
