@@ -39,9 +39,12 @@ def test_session_instantiation():
 def test_message_instantiation():
     message = Message(
         session_id=UUID(int=0),
+        sequence=1,
         role=MessageRole.USER,
         content="Hello",
     )
+    assert message.sequence == 1
     assert message.role == MessageRole.USER
     assert message.content == "Hello"
+    assert message.metadata_json is None
     assert isinstance(message.id, UUID)
