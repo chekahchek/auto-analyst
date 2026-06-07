@@ -21,7 +21,7 @@
 
 *Goal: ORM models, migrations, and file storage for datasets.*
 
-- [ ] **2.1** Define SQLModel / SQLAlchemy model  
+- [x] **2.1** Define SQLModel / SQLAlchemy model  
   Fields: `id`, `filename`, `status` (uploaded/profiled/error), `domain`, `data_type`, `profile_json`, `file_path`, `created_at`.
 
 - [ ] **2.2** Set up Alembic for migrations  
