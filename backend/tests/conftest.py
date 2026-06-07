@@ -17,3 +17,5 @@ def apply_migrations():
     """Run Alembic migrations before the test session."""
     alembic_cfg = Config("alembic.ini")
     command.upgrade(alembic_cfg, "head")
+    yield
+    command.downgrade(alembic_cfg, "base")
