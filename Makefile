@@ -10,3 +10,6 @@ lint:
 install-hooks:
 	cp hooks/pre-commit .git/hooks/pre-commit
 	chmod +x .git/hooks/pre-commit
+
+test:
+	uv --directory backend run pytest
