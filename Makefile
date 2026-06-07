@@ -1,4 +1,4 @@
-.PHONY: setup lint install-hooks
+.PHONY: setup lint install-hooks migration migrate
 
 setup:
 	uv --directory backend sync
@@ -7,9 +7,18 @@ lint:
 	uv --directory backend run ruff check .
 	uv --directory backend run ruff format .
 
+test:
+	uv --directory backend run pytest -m "not integration"
+
+test-integration:
+	uv --directory backend run pytest -m integration
+
 install-hooks:
 	cp hooks/pre-commit .git/hooks/pre-commit
 	chmod +x .git/hooks/pre-commit
 
-test:
-	uv --directory backend run pytest
+migration:
+	uv --directory backend run alembic revision --autogenerate -m "$(msg)"
+
+migrate:
+	uv --directory backend run alembic upgrade head

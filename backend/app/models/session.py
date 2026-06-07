@@ -1,4 +1,3 @@
-from datetime import datetime, timezone
 from decimal import Decimal
 from typing import TYPE_CHECKING, List, Optional
 from uuid import UUID
@@ -20,7 +19,6 @@ class Session(UUIDBase, TimestampBase, SQLModel, table=True):
     cost_spent: Decimal = Field(
         default=Decimal("0.00"), max_digits=10, decimal_places=4
     )
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     dataset: Optional["Dataset"] = Relationship(back_populates="sessions")
     messages: List["Message"] = Relationship(back_populates="session")

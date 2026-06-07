@@ -15,5 +15,19 @@ services:
       timeout: 5s
       retries: 5
 
+  migrator:
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+    command: ["sh", "-c", "cd backend && alembic upgrade head"]
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      APP_ENV: dev
+    volumes:
+      - ..:/app
+    profiles: ["migrate"]
+
 volumes:
   postgres_data:

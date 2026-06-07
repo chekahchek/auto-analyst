@@ -38,6 +38,11 @@ class Settings(BaseModel):
     file_storage_path: Path = Field(default=Path("./data"))
     skills_dir: Path = Field(default=Path("./skills"))
 
+    @property
+    def sync_db_url(self) -> str:
+        """Return a sync-driver URL for Alembic / admin tools."""
+        return self.db_url.replace("postgresql+asyncpg", "postgresql+psycopg2")
+
     @classmethod
     def from_ini(cls, app_env: str | None = None) -> "Settings":
         env = app_env or os.environ.get("APP_ENV", "dev")
