@@ -12,3 +12,6 @@
 
 # Backend
 - uv virtual env is used
+
+# Git
+- Do not use force-add, respect gitignore
