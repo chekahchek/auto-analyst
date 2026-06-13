@@ -21,13 +21,13 @@
 
 *Goal: ORM models, migrations, and file storage for datasets.*
 
-- [ ] **2.1** Define SQLModel / SQLAlchemy model  
+- [x] **2.1** Define SQLModel / SQLAlchemy model  
   Fields: `id`, `filename`, `status` (uploaded/profiled/error), `domain`, `data_type`, `profile_json`, `file_path`, `created_at`.
 
-- [ ] **2.2** Set up Alembic for migrations  
+- [x] **2.2** Set up Alembic for migrations  
   Initialise, generate first migration, add to `docker-compose` startup or document run command.
 
-- [ ] **2.3** Implement async DB session dependency (`get_db`) using SQLAlchemy async session.
+- [x] **2.3** Implement async DB session dependency (`get_db`) using SQLAlchemy async session.
 
 - [ ] **2.4** Implement CSV file storage utility  
   Save to `./data/datasets/{dataset_id}/input.csv`; validate file type and size; reject malformed CSV early.
@@ -66,7 +66,9 @@
 - [ ] **3.9** Add error handling and retry logic per design spec  
   LLM exponential backoff (max 3 retries); graph panic → session `error` + log traceback.
 
-- [ ] **3.10** Write unit tests for each node in isolation (mocked LLM / filesystem).
+- [ ] **3.10** Implement checkpointing with postgres in key nodes
+
+- [ ] **3.11** Write unit tests for each node in isolation (mocked LLM / filesystem).
 
 ---
 

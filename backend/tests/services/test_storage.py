@@ -78,10 +78,29 @@ class TestSave:
 
         assert storage_service.path_for(dataset_id).exists()
 
-    async def test_rejects_malformed_csv(self, storage_service):
+    async def test_rejects_malformed_csv_unclosed_quote(self, storage_service):
         dataset_id = UUID(int=0)
         # Unclosed quote causes pandas ParserError
         file = UploadFile(filename="data.csv", file=BytesIO(b'a,b\n1,"2\n'))
+
+        with pytest.raises(MalformedCSVError):
+            await storage_service.save(file, dataset_id)
+
+        assert not storage_service.path_for(dataset_id).exists()
+
+    async def test_rejects_malformed_csv_ragged_rows(self, storage_service):
+        dataset_id = UUID(int=0)
+        # Ragged rows: header has 2 columns, row 2 has 3 columns
+        file = UploadFile(filename="data.csv", file=BytesIO(b"a,b\n1,2,3\n"))
+
+        with pytest.raises(MalformedCSVError):
+            await storage_service.save(file, dataset_id)
+
+        assert not storage_service.path_for(dataset_id).exists()
+
+    async def test_rejects_empty_csv(self, storage_service):
+        dataset_id = UUID(int=0)
+        file = UploadFile(filename="data.csv", file=BytesIO(b""))
 
         with pytest.raises(MalformedCSVError):
             await storage_service.save(file, dataset_id)

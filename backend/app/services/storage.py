@@ -1,4 +1,5 @@
 import asyncio
+import csv
 import shutil
 from pathlib import Path
 from uuid import UUID
@@ -19,6 +20,7 @@ class DatasetStorageService:
     async def save(self, file: UploadFile, dataset_id: UUID) -> Path:
         self.validate_extension(file.filename)
         target = self.path_for(dataset_id)
+        await file.seek(0)
 
         try:
             return await asyncio.to_thread(self._write_and_validate, target, file)
@@ -42,11 +44,22 @@ class DatasetStorageService:
             df = pd.read_csv(target, nrows=5)
             if df.empty:
                 raise MalformedCSVError("CSV file has no rows")
+            # Reject ragged/inconsistent rows by checking for expected column count
+            expected_cols = len(df.columns)
+            with target.open("r", newline="") as f:
+                reader = csv.reader(f)
+                header = next(reader, None)
+                if header is None:
+                    raise MalformedCSVError("CSV file has no rows")
+                expected_cols = len(header)
+                for i, row in enumerate(reader, start=2):
+                    if len(row) != expected_cols:
+                        raise MalformedCSVError(
+                            f"Row {i} has {len(row)} columns, expected {expected_cols}"
+                        )
         except pd.errors.EmptyDataError as exc:
             raise MalformedCSVError(f"File is not a valid CSV: {exc}") from exc
         except pd.errors.ParserError as exc:
-            raise MalformedCSVError(f"File is not a valid CSV: {exc}") from exc
-        except Exception as exc:
             raise MalformedCSVError(f"File is not a valid CSV: {exc}") from exc
         return target
 
