@@ -87,6 +87,7 @@ class TestSave:
             await storage_service.save(file, dataset_id)
 
         assert not storage_service.path_for(dataset_id).exists()
+        assert not storage_service.path_for(dataset_id).parent.exists()
 
     async def test_rejects_malformed_csv_ragged_rows(self, storage_service):
         dataset_id = UUID(int=0)
@@ -97,6 +98,7 @@ class TestSave:
             await storage_service.save(file, dataset_id)
 
         assert not storage_service.path_for(dataset_id).exists()
+        assert not storage_service.path_for(dataset_id).parent.exists()
 
     async def test_rejects_empty_csv(self, storage_service):
         dataset_id = UUID(int=0)
@@ -106,6 +108,7 @@ class TestSave:
             await storage_service.save(file, dataset_id)
 
         assert not storage_service.path_for(dataset_id).exists()
+        assert not storage_service.path_for(dataset_id).parent.exists()
 
     async def test_rejects_non_csv_filename(self, storage_service):
         dataset_id = UUID(int=0)
@@ -113,3 +116,6 @@ class TestSave:
 
         with pytest.raises(InvalidFileError):
             await storage_service.save(file, dataset_id)
+
+        assert not storage_service.path_for(dataset_id).exists()
+        assert not storage_service.path_for(dataset_id).parent.exists()

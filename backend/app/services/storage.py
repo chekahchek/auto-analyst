@@ -41,11 +41,8 @@ class DatasetStorageService:
         with target.open("wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
         try:
-            df = pd.read_csv(target, nrows=5)
-            if df.empty:
-                raise MalformedCSVError("CSV file has no rows")
+            pd.read_csv(target, nrows=5)
             # Reject ragged/inconsistent rows by checking for expected column count
-            expected_cols = len(df.columns)
             with target.open("r", newline="") as f:
                 reader = csv.reader(f)
                 header = next(reader, None)
@@ -67,6 +64,10 @@ class DatasetStorageService:
     def _cleanup_sync(path: Path) -> None:
         if path.exists():
             path.unlink()
+        try:
+            path.parent.rmdir()
+        except OSError:
+            pass
 
     @staticmethod
     def validate_extension(filename: str | None) -> None:
