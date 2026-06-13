@@ -1,8 +1,12 @@
 import asyncio
+import shutil
 from pathlib import Path
 from uuid import UUID
 
-from app.services.exceptions import InvalidFileError
+import pandas as pd
+from fastapi import UploadFile
+
+from app.services.exceptions import InvalidFileError, MalformedCSVError, StorageError
 
 
 class DatasetStorageService:
@@ -12,14 +16,44 @@ class DatasetStorageService:
     def path_for(self, dataset_id: UUID) -> Path:
         return self.storage_root / "datasets" / str(dataset_id) / "input.csv"
 
+    async def save(self, file: UploadFile, dataset_id: UUID) -> Path:
+        self.validate_extension(file.filename)
+        target = self.path_for(dataset_id)
+
+        try:
+            return await asyncio.to_thread(self._write_and_validate, target, file)
+        except (InvalidFileError, MalformedCSVError):
+            await asyncio.to_thread(self._cleanup_sync, target)
+            raise
+        except Exception as exc:
+            await asyncio.to_thread(self._cleanup_sync, target)
+            raise StorageError(f"Failed to save dataset file: {exc}") from exc
+
     async def delete(self, dataset_id: UUID) -> None:
         path = self.path_for(dataset_id)
+        await asyncio.to_thread(self._cleanup_sync, path)
 
-        def _remove() -> None:
-            if path.exists():
-                path.unlink()
+    @staticmethod
+    def _write_and_validate(target: Path, file: UploadFile) -> Path:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with target.open("wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        try:
+            df = pd.read_csv(target, nrows=5)
+            if df.empty:
+                raise MalformedCSVError("CSV file has no rows")
+        except pd.errors.EmptyDataError as exc:
+            raise MalformedCSVError(f"File is not a valid CSV: {exc}") from exc
+        except pd.errors.ParserError as exc:
+            raise MalformedCSVError(f"File is not a valid CSV: {exc}") from exc
+        except Exception as exc:
+            raise MalformedCSVError(f"File is not a valid CSV: {exc}") from exc
+        return target
 
-        await asyncio.to_thread(_remove)
+    @staticmethod
+    def _cleanup_sync(path: Path) -> None:
+        if path.exists():
+            path.unlink()
 
     @staticmethod
     def validate_extension(filename: str | None) -> None:
