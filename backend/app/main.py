@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from app import routers
+from app.routers import datasets
 
 
 @asynccontextmanager
@@ -12,9 +12,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-for _, router in vars(routers).items():
-    if hasattr(router, "router"):
-        app.include_router(router.router)
+app.include_router(datasets.router)
 
 
 @app.get("/health")

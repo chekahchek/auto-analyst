@@ -29,10 +29,10 @@
 
 - [x] **2.3** Implement async DB session dependency (`get_db`) using SQLAlchemy async session.
 
-- [ ] **2.4** Implement CSV file storage utility  
+- [x] **2.4** Implement CSV file storage utility  
   Save to `./data/datasets/{dataset_id}/input.csv`; validate file type and size; reject malformed CSV early.
 
-- [ ] **2.5** Write unit tests for models and storage utility.
+- [x] **2.5** Write unit tests for models and storage utility.
 
 ---
 

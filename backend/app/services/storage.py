@@ -1,5 +1,4 @@
 import asyncio
-import csv
 import shutil
 from pathlib import Path
 from uuid import UUID
@@ -14,12 +13,12 @@ class DatasetStorageService:
     def __init__(self, storage_root: Path):
         self.storage_root = storage_root
 
-    def path_for(self, dataset_id: UUID) -> Path:
+    def obtain_file_path(self, dataset_id: UUID) -> Path:
         return self.storage_root / "datasets" / str(dataset_id) / "input.csv"
 
     async def save(self, file: UploadFile, dataset_id: UUID) -> Path:
         self.validate_extension(file.filename)
-        target = self.path_for(dataset_id)
+        target = self.obtain_file_path(dataset_id)
         await file.seek(0)
 
         try:
@@ -32,7 +31,7 @@ class DatasetStorageService:
             raise StorageError(f"Failed to save dataset file: {exc}") from exc
 
     async def delete(self, dataset_id: UUID) -> None:
-        path = self.path_for(dataset_id)
+        path = self.obtain_file_path(dataset_id)
         await asyncio.to_thread(self._cleanup_sync, path)
 
     @staticmethod
@@ -42,20 +41,8 @@ class DatasetStorageService:
             shutil.copyfileobj(file.file, buffer)
         try:
             pd.read_csv(target, nrows=5)
-            # Reject ragged/inconsistent rows by checking for expected column count
-            with target.open("r", newline="") as f:
-                reader = csv.reader(f)
-                header = next(reader, None)
-                if header is None:
-                    raise MalformedCSVError("CSV file has no rows")
-                expected_cols = len(header)
-                for i, row in enumerate(reader, start=2):
-                    if len(row) != expected_cols:
-                        raise MalformedCSVError(
-                            f"Row {i} has {len(row)} columns, expected {expected_cols}"
-                        )
-        except pd.errors.EmptyDataError as exc:
-            raise MalformedCSVError(f"File is not a valid CSV: {exc}") from exc
+        except pd.errors.EmptyDataError:
+            raise MalformedCSVError("CSV file is empty") from None
         except pd.errors.ParserError as exc:
             raise MalformedCSVError(f"File is not a valid CSV: {exc}") from exc
         return target
