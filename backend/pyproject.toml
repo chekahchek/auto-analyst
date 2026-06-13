@@ -18,6 +18,7 @@ dependencies = [
 ]
 
 [tool.pytest.ini_options]
+asyncio_mode = "auto"
 markers = [
     "integration: requires a running database",
 ]
