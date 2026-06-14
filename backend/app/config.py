@@ -37,6 +37,7 @@ class Settings(BaseModel):
     cost_budget: Decimal = Field(default=Decimal("1.00"))
     file_storage_path: Path = Field(default=Path("./data"))
     skills_dir: Path = Field(default=Path("./skills"))
+    max_profile_llm_calls: int = Field(default=10)
 
     @property
     def sync_db_url(self) -> str:
