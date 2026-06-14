@@ -7,8 +7,20 @@ from app.agents.tools import (
 
 
 @pytest.fixture
-def skills_dir() -> Path:
-    return Path(__file__).resolve().parents[5] / "skills"
+def skills_dir(tmp_path: Path) -> Path:
+    """Create an isolated skills directory so tests don't depend on git submodules."""
+    skills_dir = tmp_path / "skills"
+    skill_path = skills_dir / "core" / "profile-data"
+    skill_path.mkdir(parents=True)
+    skill_path.joinpath("SKILL.md").write_text(
+        "---\n"
+        "name: profile-data\n"
+        "description: Profiles an uploaded dataset to infer type and domain.\n"
+        "---\n\n"
+        "## Overview\n\n"
+        "Analyse the dataset to deduce the type of data and the business domain.\n"
+    )
+    return skills_dir
 
 
 def test_build_list_available_skills_tool(skills_dir):
