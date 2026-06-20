@@ -30,7 +30,6 @@ class Settings(BaseModel):
     db_url: str = Field(
         default="postgresql+asyncpg://postgres:postgres@localhost:5432/auto_analyst"
     )
-    anthropic_api_key: str = Field(default="") # To remove after debugging
     api_key: str = Field(default="")
     model: str = Field(default="kimi-k2.5")
     api_base_url: str = Field(
