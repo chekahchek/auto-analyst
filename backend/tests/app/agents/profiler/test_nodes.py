@@ -3,9 +3,15 @@ from unittest.mock import MagicMock
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langgraph.graph import END
-
-from app.agents.profiler.nodes import call_profiler, should_continue
+from langgraph.prebuilt import ToolNode
+from app.agents.profiler.nodes import (
+    call_profiler,
+    should_continue,
+    retry_node,
+    build_profiler_graph,
+)
 from app.agents.profiler.states import ProfilerState
+from app.agents.profiler.prompts import RETRY_PROMPT
 
 
 def test_call_profiler_invokes_model_with_system_prompt_and_state_messages():
@@ -115,3 +121,52 @@ def test_should_continue_ends_when_invalid_json_and_over_limit():
     }
 
     assert should_continue(state) == END
+
+
+def test_retry_node():
+    state: ProfilerState = {
+        "storage_path": "/tmp/test.csv",
+        "llm_calls": 1,
+        "max_llm_calls": 3,
+        "messages": [AIMessage(content="message")],
+    }
+    new_state = retry_node(state)
+    assert new_state["messages"][0].content == RETRY_PROMPT
+
+
+async def test_build_profiler_graph():
+    def agent_node_side_effect(state):
+        if state["llm_calls"] == 0:
+            return {
+                "messages": [AIMessage(content="not valid json")],
+                "llm_calls": 1,
+            }
+        return {
+            "messages": [
+                AIMessage(
+                    content='{"data_type": ["numeric"], "business_domain": "finance"}'
+                )
+            ],
+            "llm_calls": 2,
+        }
+
+    agent_node = MagicMock(side_effect=agent_node_side_effect)
+    graph = build_profiler_graph(agent_node, ToolNode([]), retry_node)
+
+    initial_state: ProfilerState = {
+        "storage_path": "/tmp/test.csv",
+        "llm_calls": 0,
+        "max_llm_calls": 2,
+        "messages": [HumanMessage(content="start")],
+    }
+
+    final_state = await graph.ainvoke(initial_state)
+
+    assert len(final_state["messages"]) == 4
+    assert final_state["messages"][0].content == "start"
+    assert final_state["messages"][1].content == "not valid json"
+    assert final_state["messages"][2].content == RETRY_PROMPT
+    assert final_state["messages"][3].content == (
+        '{"data_type": ["numeric"], "business_domain": "finance"}'
+    )
+    assert final_state["llm_calls"] == 2

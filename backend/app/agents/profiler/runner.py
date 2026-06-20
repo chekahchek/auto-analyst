@@ -47,6 +47,7 @@ async def profile_dataset(
         model=bound_model,
         read_skill_instructions=read_skill_instructions,
     )
+    # TODO: Move this to FastAPI context manager
     graph = build_profiler_graph(agent_node, tool_node, retry_node)
 
     initial_state = ProfilerState(

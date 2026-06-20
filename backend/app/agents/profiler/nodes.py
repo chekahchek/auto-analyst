@@ -41,11 +41,12 @@ def retry_node(_state: ProfilerState) -> dict:
 def should_continue(state: ProfilerState) -> str:
     """Route to the tool node if the LLM requested a tool call, or to retry/END otherwise."""
     last_message = state["messages"][-1]
+    tool_calls = getattr(last_message, "tool_calls", [])
 
-    if last_message.tool_calls and state["llm_calls"] < state["max_llm_calls"]:
+    if tool_calls and state["llm_calls"] < state["max_llm_calls"]:
         return "tools"
 
-    if not last_message.tool_calls:
+    if not tool_calls:
         try:
             json.loads(last_message.content)
             return END
