@@ -1,6 +1,5 @@
 from app.config import Settings
 from app.services.storage import DatasetStorageService
-from langchain_anthropic import ChatAnthropic
 from langchain_core.language_models import BaseChatModel
 from langchain_openai import ChatOpenAI
 
@@ -16,14 +15,13 @@ def get_storage_service() -> DatasetStorageService:
 
 
 def get_model() -> BaseChatModel:
-    if _settings.openai_api_key:
+    if _settings.model and _settings.api_key and _settings.api_base_url:
         return ChatOpenAI(
-            model="gpt-4o-mini",
-            api_key=_settings.openai_api_key,
+            model=_settings.model,
+            api_key=_settings.api_key,
+            base_url=_settings.api_base_url,
         )
-    if _settings.anthropic_api_key:
-        return ChatAnthropic(
-            model="claude-3-5-sonnet-20240620",
-            api_key=_settings.anthropic_api_key,
+    else:
+        raise ValueError(
+            "Model configuration is incomplete. Please check your settings."
         )
-    raise ValueError("No LLM API key configured")

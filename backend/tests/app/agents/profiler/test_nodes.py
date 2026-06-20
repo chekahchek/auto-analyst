@@ -3,9 +3,9 @@ from unittest.mock import MagicMock
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langgraph.graph import END
-from langgraph.prebuilt import ToolNode
+
 from app.agents.profiler.nodes import (
-    call_profiler,
+    profiler_node,
     should_continue,
     retry_node,
     build_profiler_graph,
@@ -14,10 +14,16 @@ from app.agents.profiler.states import ProfilerState
 from app.agents.profiler.prompts import RETRY_PROMPT
 
 
-def test_call_profiler_invokes_model_with_system_prompt_and_state_messages():
+def test_call_profiler_invokes_model_with_system_prompt_and_state_messages(
+    tmp_path, monkeypatch
+):
     skill_instructions = "name: profile-data"
     read_skill_instructions = MagicMock()
     read_skill_instructions.invoke.return_value = skill_instructions
+    monkeypatch.setattr(
+        "app.agents.profiler.nodes.build_read_skill_instructions_tool",
+        lambda _skills_dir: read_skill_instructions,
+    )
 
     model_response = AIMessage(content='{"name": "test"}')
     model = MagicMock()
@@ -30,7 +36,7 @@ def test_call_profiler_invokes_model_with_system_prompt_and_state_messages():
         "messages": [HumanMessage(content="Hello")],
     }
 
-    result = call_profiler(state, model, read_skill_instructions)
+    result = profiler_node(state, model, tmp_path)
 
     read_skill_instructions.invoke.assert_called_once_with(
         {"skill_name": "core/profile-data"}
@@ -134,24 +140,24 @@ def test_retry_node():
     assert new_state["messages"][0].content == RETRY_PROMPT
 
 
-async def test_build_profiler_graph():
-    def agent_node_side_effect(state):
-        if state["llm_calls"] == 0:
-            return {
-                "messages": [AIMessage(content="not valid json")],
-                "llm_calls": 1,
-            }
-        return {
-            "messages": [
-                AIMessage(
-                    content='{"data_type": ["numeric"], "business_domain": "finance"}'
-                )
-            ],
-            "llm_calls": 2,
-        }
+async def test_build_profiler_graph(tmp_path, monkeypatch):
+    skill_instructions = "name: profile-data"
+    read_skill_instructions = MagicMock()
+    read_skill_instructions.invoke.return_value = skill_instructions
+    monkeypatch.setattr(
+        "app.agents.profiler.nodes.build_read_skill_instructions_tool",
+        lambda _skills_dir: read_skill_instructions,
+    )
 
-    agent_node = MagicMock(side_effect=agent_node_side_effect)
-    graph = build_profiler_graph(agent_node, ToolNode([]), retry_node)
+    bound_model = MagicMock()
+    bound_model.invoke.side_effect = [
+        AIMessage(content="not valid json"),
+        AIMessage(content='{"data_type": ["numeric"], "business_domain": "finance"}'),
+    ]
+    model = MagicMock()
+    model.bind_tools.return_value = bound_model
+
+    graph = build_profiler_graph(tmp_path, model)
 
     initial_state: ProfilerState = {
         "storage_path": "/tmp/test.csv",
