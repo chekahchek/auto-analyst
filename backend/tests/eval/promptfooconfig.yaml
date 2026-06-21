@@ -1,0 +1,27 @@
+description: Evals
+
+prompts:
+  - "run"
+
+providers:
+  - id: python:file://eval_profiler.py
+
+tests:
+  - description: Profiler returns expected value from dataset
+    provider: python:file://eval_profiler.py
+
+    vars:
+      model: kimi-k2.5
+      storage_path: data/GraduateEmploymentSurveyNTUNUSSITSMUSUSSSUTD.csv
+      expected_value: panel
+
+    assert:
+      - type: python
+        value: |
+          import json
+          expected_value = context["vars"]["expected_value"]
+          data_type = json.loads(output).get("data_type", [])
+          eval_result = any(expected_value in d for d in data_type)
+          return {'pass' : eval_result,
+                  'score': 1.0 if eval_result else 0.0,
+                  'reason': f"Returned '{data_type}' instead of '{expected_value}'" if not eval_result else 'Expected value found'}
