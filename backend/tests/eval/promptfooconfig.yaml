@@ -1,0 +1,20 @@
+description: Evals
+
+prompts:
+  - "run"
+
+providers:
+  - id: python:file://eval_profiler.py
+
+tests:
+  - description: Profiler returns expected value from dataset
+    provider: python:file://eval_profiler.py
+
+    vars:
+      model: kimi-k2.5
+      storage_path: data/GraduateEmploymentSurveyNTUNUSSITSMUSUSSSUTD.csv
+      expected_value: panel
+
+    assert:
+      - type: python
+        value: file://assert_profiler.py
