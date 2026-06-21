@@ -1,6 +1,5 @@
 from unittest.mock import MagicMock
 
-import pytest
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langgraph.graph import END
 
@@ -14,9 +13,7 @@ from app.agents.profiler.states import ProfilerState
 from app.agents.profiler.prompts import RETRY_PROMPT
 
 
-def test_profiler_node(
-    tmp_path, monkeypatch
-):
+def test_profiler_node(tmp_path, monkeypatch):
     skill_instructions = "name: profile-data"
     read_skill_instructions = MagicMock()
     read_skill_instructions.invoke.return_value = skill_instructions
