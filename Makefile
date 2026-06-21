@@ -8,10 +8,10 @@ lint:
 	uv --directory backend run ruff format .
 
 test:
-	uv --directory backend run pytest -m "not integration"
+	uv --directory backend run pytest tests/unit_test
 
 test-integration:
-	uv --directory backend run pytest -m integration
+	APP_ENV=test uv --directory backend run pytest tests/integration_test
 
 install-hooks:
 	cp hooks/pre-commit .git/hooks/pre-commit

@@ -14,7 +14,7 @@ from app.agents.profiler.states import ProfilerState
 from app.agents.profiler.prompts import RETRY_PROMPT
 
 
-def test_call_profiler_invokes_model_with_system_prompt_and_state_messages(
+def test_profiler_node(
     tmp_path, monkeypatch
 ):
     skill_instructions = "name: profile-data"
@@ -29,12 +29,12 @@ def test_call_profiler_invokes_model_with_system_prompt_and_state_messages(
     model = MagicMock()
     model.invoke.return_value = model_response
 
-    state: ProfilerState = {
-        "storage_path": "/tmp/test.csv",
-        "llm_calls": 1,
-        "max_llm_calls": 3,
-        "messages": [HumanMessage(content="Hello")],
-    }
+    state: ProfilerState = ProfilerState(
+        storage_path="/tmp/test.csv",
+        llm_calls=1,
+        max_llm_calls=3,
+        messages=[HumanMessage(content="Hello")],
+    )
 
     result = profiler_node(state, model, tmp_path)
 
@@ -51,35 +51,26 @@ def test_call_profiler_invokes_model_with_system_prompt_and_state_messages(
     assert result == {"messages": [model_response], "llm_calls": 2}
 
 
-@pytest.mark.parametrize(
-    "content,expected_key",
-    [
-        ('{"valid": "json"}', "json_end"),
-        ("not json", "retry"),
-    ],
-)
-def test_should_continue_routes_based_on_last_message_content(content, expected_key):
-    state: ProfilerState = {
-        "storage_path": "/tmp/test.csv",
-        "llm_calls": 1,
-        "max_llm_calls": 3,
-        "messages": [AIMessage(content=content)],
-    }
+def test_should_continue():
+    state_valid_json = ProfilerState(
+        storage_path="/tmp/test.csv",
+        llm_calls=1,
+        max_llm_calls=3,
+        messages=[AIMessage(content='{"valid": "json"}')],
+    )
 
-    result = should_continue(state)
+    state_invalid_json = ProfilerState(
+        storage_path="/tmp/test.csv",
+        llm_calls=1,
+        max_llm_calls=3,
+        messages=[AIMessage(content="not json")],
+    )
 
-    if expected_key == "json_end":
-        assert result == END
-    else:
-        assert result == "retry"
-
-
-def test_should_continue_routes_to_tools_when_tool_calls_present_and_under_limit():
-    state: ProfilerState = {
-        "storage_path": "/tmp/test.csv",
-        "llm_calls": 1,
-        "max_llm_calls": 3,
-        "messages": [
+    state_route_to_tools = ProfilerState(
+        storage_path="/tmp/test.csv",
+        llm_calls=1,
+        max_llm_calls=3,
+        messages=[
             AIMessage(
                 content="",
                 tool_calls=[
@@ -91,51 +82,28 @@ def test_should_continue_routes_to_tools_when_tool_calls_present_and_under_limit
                 ],
             )
         ],
-    }
+    )
 
-    assert should_continue(state) == "tools"
+    state_over_limit = ProfilerState(
+        storage_path="/tmp/test.csv",
+        llm_calls=3,
+        max_llm_calls=3,
+        messages=[AIMessage(content="not json")],
+    )
 
-
-def test_should_continue_ends_when_tool_calls_present_but_over_limit():
-    state: ProfilerState = {
-        "storage_path": "/tmp/test.csv",
-        "llm_calls": 3,
-        "max_llm_calls": 3,
-        "messages": [
-            AIMessage(
-                content="",
-                tool_calls=[
-                    {
-                        "id": "call_1",
-                        "name": "some_tool",
-                        "args": {"arg1": "value1"},
-                    }
-                ],
-            )
-        ],
-    }
-
-    assert should_continue(state) == END
-
-
-def test_should_continue_ends_when_invalid_json_and_over_limit():
-    state: ProfilerState = {
-        "storage_path": "/tmp/test.csv",
-        "llm_calls": 3,
-        "max_llm_calls": 3,
-        "messages": [AIMessage(content="not json")],
-    }
-
-    assert should_continue(state) == END
+    assert should_continue(state_valid_json) == END
+    assert should_continue(state_invalid_json) == "retry"
+    assert should_continue(state_route_to_tools) == "tools"
+    assert should_continue(state_over_limit) == END
 
 
 def test_retry_node():
-    state: ProfilerState = {
-        "storage_path": "/tmp/test.csv",
-        "llm_calls": 1,
-        "max_llm_calls": 3,
-        "messages": [AIMessage(content="message")],
-    }
+    state: ProfilerState = ProfilerState(
+        storage_path="/tmp/test.csv",
+        llm_calls=1,
+        max_llm_calls=3,
+        messages=[AIMessage(content="message")],
+    )
     new_state = retry_node(state)
     assert new_state["messages"][0].content == RETRY_PROMPT
 
@@ -159,12 +127,12 @@ async def test_build_profiler_graph(tmp_path, monkeypatch):
 
     graph = build_profiler_graph(tmp_path, model)
 
-    initial_state: ProfilerState = {
-        "storage_path": "/tmp/test.csv",
-        "llm_calls": 0,
-        "max_llm_calls": 2,
-        "messages": [HumanMessage(content="start")],
-    }
+    initial_state: ProfilerState = ProfilerState(
+        storage_path="/tmp/test.csv",
+        llm_calls=0,
+        max_llm_calls=2,
+        messages=[HumanMessage(content="start")],
+    )
 
     final_state = await graph.ainvoke(initial_state)
 

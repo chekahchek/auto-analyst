@@ -32,9 +32,7 @@ class Settings(BaseModel):
     )
     api_key: str = Field(default="")
     model: str = Field(default="kimi-k2.5")
-    api_base_url: str = Field(
-        default="sk-5D58X0PD08vlWJfQYF9qJYHCCNDgDDAWjW8pJ7yI3rjSgldC8DJbczUd7nkRWMvc"
-    )
+    api_base_url: str = Field(default="")
     cost_budget: Decimal = Field(default=Decimal("1.00"))
     file_storage_path: Path = Field(default=Path("./data"))
     skills_dir: Path = Field(default=Path("./skills"))

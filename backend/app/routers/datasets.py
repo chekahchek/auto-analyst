@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -9,6 +9,7 @@ from app.dependencies import get_storage_service
 from app.models.dataset import Dataset
 from app.services.exceptions import InvalidFileError, MalformedCSVError, StorageError
 from app.services.storage import DatasetStorageService
+from app.services.profiling import update_dataset_profile
 
 router = APIRouter(prefix="/datasets", tags=["datasets"])
 
@@ -16,11 +17,14 @@ router = APIRouter(prefix="/datasets", tags=["datasets"])
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_dataset(
     file: UploadFile,
+    background_tasks: BackgroundTasks,
+    request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
     storage_service: Annotated[DatasetStorageService, Depends(get_storage_service)],
 ):
     DatasetStorageService.validate_extension(file.filename)
 
+    # Store dataset in database to get ID
     dataset = Dataset(
         filename=Path(file.filename).name,
         original_filename=file.filename,
@@ -31,6 +35,7 @@ async def create_dataset(
     await db.commit()
     await db.refresh(dataset)
 
+    # Save the dataset file to storage and validate it
     try:
         path = await storage_service.save(file, dataset.id)
     except (InvalidFileError, MalformedCSVError) as exc:
@@ -48,6 +53,15 @@ async def create_dataset(
 
     dataset.storage_path = str(path)
     await db.commit()
+
+    # Run a background task to profile the dataset and update database
+    background_tasks.add_task(
+        update_dataset_profile,
+        dataset_id=dataset.id,
+        storage_path=str(path),
+        graph=request.app.state.profiler_graph,
+        max_llm_calls=request.app.state.settings.max_profile_llm_calls,
+    )
 
     return {
         "dataset_id": str(dataset.id),
