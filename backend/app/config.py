@@ -30,14 +30,14 @@ class Settings(BaseModel):
     db_url: str = Field(
         default="postgresql+asyncpg://postgres:postgres@localhost:5432/auto_analyst"
     )
-    moonshot_api_key: str | None = None
-    openai_api_key: str | None = None
-    anthropic_api_key: str | None = None
+    api_key: str = Field(default="")
+    model: str = Field(default="kimi-k2.5")
     api_base_url: str = Field(default="")
     cost_budget: Decimal = Field(default=Decimal("1.00"))
     file_storage_path: Path = Field(default=Path("./data"))
     skills_dir: Path = Field(default=Path("./skills"))
     max_profile_llm_calls: int = Field(default=10)
+    log_level: str = Field(default="INFO")
 
     @property
     def sync_db_url(self) -> str:
