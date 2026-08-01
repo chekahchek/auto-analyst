@@ -41,24 +41,21 @@
 
 *Goal: Write the skills the main loop consumes. They live in `skills/` and are discoverable by the existing `list_available_skills` / `read_skill_instructions` tools.*
 
-- [ ] **4.1** Author analytical skills per data type  
+- [x] **4.1** Author analytical skills per data type  
   `analytical/time-series/SKILL.md`, `analytical/tabular-eda/SKILL.md`, `analytical/free-text/SKILL.md`, plus `panel`, `event-log`, `cohort` if needed.
 
-- [ ] **4.2** Author `core/storytelling-dashboard/SKILL.md`  
+- [x] **4.2** Author `core/storytelling-dashboard/SKILL.md`  
   Narrative restructuring conventions: how to order hypotheses and evidence into a coherent story.
 
-- [ ] **4.3** Author `core/frontend-design/SKILL.md`  
+- [x] **4.3** Author `core/frontend-design/SKILL.md`  
   HTML/Plotly layout conventions, theming, responsive rules, accessibility defaults.
 
 - [ ] **4.4** Author `core/critic-rubric/SKILL.md`  
   Scoring criteria (0–1), feedback format, and what constitutes a revision vs. an approval.
 
-- [ ] **4.5** Add `triggers` to skill frontmatter  
-  Lightweight matching hints (e.g. `data_type: [time-series]`, `business_domain: [finance]`) so the agent can filter by description; folder path already provides implicit scoping.
+- [x] **4.5** Create system prompt for core 
 
-- [ ] **4.6** Create system prompt for core 
-
-- [ ] **4.7** Tests: skill files parse correctly, frontmatter is valid YAML, no broken links.
+- [x] **4.6** Tests: skill files parse correctly, frontmatter is valid YAML, no broken links.
 
 ---
 
