@@ -28,35 +28,22 @@ sequenceDiagram
     actor U as User
     participant A as AnalystAgent
     participant P as Profiler
-    participant S as Skills
-    participant C as CriticAgent
 
     U->>A: Upload CSV
     A->>P: Profile dataset
     Note over P: Infer domain and data type
-    A->>A: Match profile → skill triggers
-    A->>S: Load relevant skills
+    P->>P: Self-load core/profile-data skill
 
-    loop hypothesis cycle
-        A->>A: hypothesis_generator
-        A->>A: analyzer (generate Python)
-        A->>A: Execute in sandbox
-        opt external context needed
-            A->>S: Load web research skill
-            A->>A: Gather external context
+    A->>A: analyst
+    Note over A: Self-load analytical skill, generate hypotheses, execute Python (sandbox) to test each, collect evidence. Agent decides when done.
+
+    loop builder iteration (max 3)
+        A->>A: storyteller (Pre-loaded storytelling skill)
+        A->>A: frontend_designer (Pre-loaded frontend-design skill)
+        A->>A: critic (Pre-loaded critic-rubric skill)
+        alt score < threshold
+            A->>A: Revise narrative or design
         end
-        A->>A: Collect evidence
-    end
-
-    A->>S: Load storytelling skill
-    A->>A: dashboard_builder (Jinja2 HTML)
-    A->>C: Request review
-    C->>C: Score quality
-    C-->>A: Approve or diff
-
-    alt needs revision (max 3, abort if stall)
-        A->>A: Revise dashboard
-        A->>C: Re-review
     end
 
     A-->>U: Deliver dashboard
@@ -71,25 +58,31 @@ Three types of skills:
 
 | Scope | Purpose |
 | --- | --- |
-| `core/*` | Core skills powering the agent to perform profiling the data, capturing memories, web search etc. |
+| `core/*` | Core skills powering the agent to perform profiling, storytelling, frontend design, critic rubric, web search, memory capture etc. |
 | `analytical/*` | Guide on analysing different types of data e.g. time series, text, tabular, etc. |
 | `domain-knowledge/*` | Domain knowledge for understanding dataset, nuances in the data, etc.|
 
 ```
 skills/
   core/
-    profile-data.md
-    capture-memories.md
-    web-search.md
+    profile-data/SKILL.md
+    storytelling-dashboard/SKILL.md
+    frontend-design/SKILL.md
+    critic-rubric/SKILL.md
+    web-search/SKILL.md
+    capture-memories/SKILL.md
   analytical/
-    time-series.md
-    tabular-eda.md
-    free-text.md
-    storytelling-dashboard.md
+    time-series/SKILL.md
+    tabular-eda/SKILL.md
+    free-text/SKILL.md
+    panel/SKILL.md
+    event-log/SKILL.md
+    cohort/SKILL.md
   domain-knowledge/
-    finance.md
-    ops.md
-    growth.md
+    finance/SKILL.md
+    ops/SKILL.md
+    growth/SKILL.md
+    hr/SKILL.md
 ```
 
 ## Database Model
@@ -149,7 +142,7 @@ erDiagram
 
 | Layer | Approach |
 |---|---|
-| **Unit** | pytest. Skill registry parsing, HTML rendering, graph nodes in isolation (mocked LLM). |
+| **Unit** | pytest. Skill file parsing, HTML rendering, graph nodes in isolation (mocked LLM). |
 | **Integration** | Full graph end-to-end with frozen CSV fixtures + cached LLM responses. Assert expected HTML sections. |
 | **Eval / Regression** | `tests/eval/` with frozen CSVs and expected dashboard attributes. Run on PRs. |
 | **Cost guard** | Mock LLM client by default. Real calls only in eval, gated by env var. |
