@@ -35,6 +35,4 @@ def downgrade() -> None:
     op.create_index(
         op.f("ix_message_session_id"), "message", ["session_id"], unique=False
     )
-    op.create_index(
-        op.f("ix_message_sequence"), "message", ["sequence"], unique=False
-    )
+    op.create_index(op.f("ix_message_sequence"), "message", ["sequence"], unique=False)
