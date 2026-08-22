@@ -19,7 +19,6 @@ async def test_update_dataset_profile_updates_db(monkeypatch):
     )
 
     dataset = Dataset(
-        filename="test.csv",
         original_filename="test.csv",
         storage_path="/tmp/test.csv",
     )

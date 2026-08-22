@@ -1,4 +1,3 @@
-from pathlib import Path
 from typing import Annotated
 
 from fastapi import (
@@ -15,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.dependencies import get_storage_service
 from app.models.dataset import Dataset
+from app.models.session import Session
 from app.services.exceptions import InvalidFileError, MalformedCSVError, StorageError
 from app.services.storage import DatasetStorageService
 from app.services.profiling import update_dataset_profile
@@ -34,7 +34,6 @@ async def create_dataset(
 
     # Store dataset in database to get ID
     dataset = Dataset(
-        filename=Path(file.filename).name,
         original_filename=file.filename,
         storage_path="",
         user_id=None,
@@ -60,7 +59,11 @@ async def create_dataset(
         ) from exc
 
     dataset.storage_path = str(path)
+    session = Session(dataset_id=dataset.id)
+    db.add(session)
     await db.commit()
+    await db.refresh(dataset)
+    await db.refresh(session)
 
     # Run a background task to profile the dataset and update database
     background_tasks.add_task(
@@ -73,7 +76,7 @@ async def create_dataset(
 
     return {
         "dataset_id": str(dataset.id),
-        "filename": dataset.filename,
+        "session_id": str(session.id),
         "original_filename": dataset.original_filename,
         "storage_path": dataset.storage_path,
     }

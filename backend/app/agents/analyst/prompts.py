@@ -74,22 +74,24 @@ Your final response must be a single, parseable JSON object.
 
 ### Agent Response Format
 
-Return exactly one JSON object in the following shape. Do not wrap it in markdown code blocks or add any prose before or after it.
+Pass a single JSON object as the `hypotheses_evidence` argument. Do not wrap it in markdown code blocks or add any prose.
 
 ```json
 {
-  "insights": [
-    "The top 10% of customers by spend account for 54% of total revenue...",
-    "Group A's higher average is driven by 3 extreme rows; the median is nearly identical to Group B's..."
-  ],
-  "charts": [
-    {
-      "title": "Revenue Share by Customer Decile",
-      "insight_index": 0,
-      "description": "Top 10% of customers by spend drive 54% of total revenue",
-      "figure": { /* Plotly figure JSON spec from fig.to_dict() */ }
-    }
-  ]
+  "hypotheses_evidence": {
+    "insights": [
+      "The top 10% of customers by spend account for 54% of total revenue...",
+      "Group A's higher average is driven by 3 extreme rows; the median is nearly identical to Group B's..."
+    ],
+    "charts": [
+      {
+        "title": "Revenue Share by Customer Decile",
+        "insight_index": 0,
+        "description": "Top 10% of customers by spend drive 54% of total revenue",
+        "figure": { /* Plotly figure JSON spec from fig.to_dict() */ }
+      }
+    ]
+  }
 }
 ```
 

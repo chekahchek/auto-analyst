@@ -14,11 +14,11 @@ A self-improving agentic system for data analysis. The user uploads a CSV, an ag
 
 | Endpoint | Method | Description |
 |---|---|---|
-| `/datasets` | `POST` | Upload CSV. Creates dataset, runs profiler. Returns `dataset_id`. |
+| `/datasets` | `POST` | Upload CSV. Creates dataset and a session, runs profiler. Returns `dataset_id` and `session_id`. |
 | `/datasets` | `GET` | List user's datasets with profile metadata. |
-| `/datasets/{id}/sessions` | `POST` | Create a chat session for a dataset. Returns `session_id`; analysis starts asynchronously. |
-| `/sessions/{id}` | `GET` | Get session status + latest dashboard HTML if ready. |
-| `/sessions/{id}/chat` | `POST` | Follow-up question. Appends to conversation, re-runs relevant graph nodes. |
+| `/datasets/{id}/sessions` | `POST` | Create a session manually if one does not exist. |
+| `/sessions/{id}` | `GET` | Get session metadata + latest dashboard HTML if available. |
+| `/sessions/{id}/chat` | `POST` | Send a message (first or follow-up). Hydrates state, invokes analysis graph, returns response and dashboard if generated. |
 
 
 ### Runtime Flow
@@ -35,7 +35,7 @@ sequenceDiagram
     P->>P: Self-load core/profile-data skill
 
     A->>A: analyst
-    Note over A: Self-load analytical skill, generate hypotheses, execute Python (sandbox) to test each, collect evidence. Agent decides when done.
+    Note over A: Discover/load analytical skill via tools, generate hypotheses, execute Python (sandbox) to test each, collect evidence. Agent decides whether to answer conversationally or run analysis.
 
     loop builder iteration (max 3)
         A->>A: storyteller (Pre-loaded storytelling skill)
@@ -48,6 +48,74 @@ sequenceDiagram
 
     A-->>U: Deliver dashboard
 ```
+
+### Conversation State
+
+**Within a run**, `messages` holds the full working context: every tool call and tool result. This scratchpad is discarded when the run ends.
+
+**Across runs**, only the clean transcript is kept: the user message and the final assistant message of each turn. Two rows per turn, content only — no tool calls. Tool-call traces live in logs, not the `message` table.
+
+**Every run ends with a clean assistant message:**
+- Conversational path: the analyst's direct reply.
+- Analysis path: a response node composes a summary after the build loop.
+- Budget exhaustion: a node appends a "budget reached" message instead of stopping mid-tool-call.
+
+**Artifacts are separate rows, not messages.** Each analysis-producing turn writes one `artifact` row keyed by `session_id + iteration`, holding `hypotheses_evidence_json`, `narrative_json`, and `dashboard_path`. On follow-up hydration:
+- The transcript (`message` rows) is injected as `user`/`assistant` messages.
+- All artifact iterations are injected as a single system block, so the LLM can reference any prior iteration (e.g. "where did iteration 1's data come from").
+- The latest dashboard HTML is read on demand via a tool from its `dashboard_path`.
+- `llm_calls` resets to 0; cost is tracked in logs/OTel, not in a DB column.
+
+### First-time Conversation Flow
+
+1. User uploads CSV.
+2. Backend creates a dataset and a session, then triggers the profiler in the background.
+3. Backend returns `dataset_id` and `session_id` to the user.
+4. User sends the first message (set to be a default message in the frontend), e.g. `"Generate insights"`.
+5. Backend loads from the DB:
+   - `messages`: `["Generate insights"]`
+   - `profile`: `{domain, data_type}`
+   - `dataset_path`
+   - no artifact rows yet (first iteration)
+6. Backend hydrates the `AnalystState` and invokes LangGraph
+7. Analyst node:
+   - Discovers and loads the relevant analytical skill via `read_skill_instructions`.
+   - Calls `execute_python_script` to run Python on the dataset.
+   - Produces `hypotheses_evidence`.
+   - Conditional edge to continue to Storyteller Node
+8. Storyteller Node:
+   - Storyteller loads the storytelling skill and condenses `hypotheses_evidence` into `narrative`.
+   - Conditional edge to continue to Frontend Design Node
+9. Frontend Design Node:
+   - Frontend designer loads the frontend skill and generates `dashboard_html`
+   - Conditional edge to continue to Critic node with the full context
+10. Critic Node: scores the dashboard; if below threshold, the loop revises narrative or design (max 3 iterations).
+11. Response node composes the chat-facing assistant message (summary of findings) and appends it to `messages`.
+12. Backend persists to the DB:
+   - The initial message
+   - One `artifact` row: `iteration=1`, `hypotheses_evidence_json`, `narrative_json`, `dashboard_path`
+13. Backend returns the response and dashboard to the user.
+
+### Follow-up Conversation Flow
+
+1. User sends a follow-up message, e.g. `"Why did churn spike in Q2?"`.
+2. Backend loads from the DB:
+   - Clean transcript (user + final assistant messages of past turns)
+   - `profile`, `dataset_path`
+   - All artifact iterations (`hypotheses_evidence_json` + `narrative_json` per row) injected as a system prompt
+3. Backend hydrates the `AnalystState` (see Conversation State) and invokes LangGraph.
+4. Analyst node decides whether to answer from the existing context or run new analysis.
+5. **Conversation path** (no new analysis needed):
+   - The analyst node appends the answer directly to `messages`.
+   - The graph returns the final state.
+6. **New analysis path**:
+   - The analyst node loads the relevant skill via `read_skill_instructions`.
+   - It calls `execute_python_script` to run new Python code.
+   - It produces new `hypotheses_evidence`, stored as a new artifact iteration.
+   - Storyteller, frontend designer, and critic loop regenerate the narrative and dashboard.
+   - Response node composes the assistant message.
+7. Backend persists the turn's two message rows and a new artifact row (`iteration` incremented) to the DB.
+8. Backend returns the response and dashboard (if regenerated) to the user.
 
 
 ## Skill Registry
@@ -92,6 +160,7 @@ erDiagram
     users ||--o{ datasets : "owns"
     datasets ||--o{ sessions : "has"
     sessions ||--o{ messages : "contains"
+    sessions ||--o{ artifacts : "produces"
 
     users {
         uuid id PK
@@ -102,21 +171,16 @@ erDiagram
     datasets {
         uuid id PK
         uuid user_id FK
-        string filename
         string original_filename
         string storage_path
         string domain
         string data_type
-        jsonb profile_json
         timestamp created_at
-        timestamp updated_at
     }
 
     sessions {
         uuid id PK
         uuid dataset_id FK
-        string dashboard_path
-        decimal cost_spent
         timestamp created_at
         timestamp updated_at
     }
@@ -124,8 +188,19 @@ erDiagram
     messages {
         uuid id PK
         uuid session_id FK
+        int sequence
         enum role "user | assistant | system | tool"
         text content
+        timestamp created_at
+    }
+
+    artifacts {
+        uuid id PK
+        uuid session_id FK
+        int iteration
+        json hypotheses_evidence_json
+        json narrative_json
+        string dashboard_path
         timestamp created_at
     }
 ```
@@ -134,7 +209,7 @@ erDiagram
 ## Observability & Cost Controls
 
 - **Structured logging:** `structlog` JSON. Every node logs entry/exit with timing. Every LLM call logs model, tokens, cost.
-- **Cost tracking:** Per-session spend accumulator. Hard-stop if max budget exceeded (configurable, default $1.00).
+- **Cost tracking:** Per-session spend accumulator in application memory (injected via graph state). Hard-stop if max budget exceeded (configurable, default $1.00). No `cost_spent` DB column — cumulative cost lives in logs/OTel.
 - **Tracing:** OpenTelemetry spans across FastAPI → LangGraph → LLM calls.
 - **Metrics:** Prometheus counters for sessions, deliveries, errors by type, avg tokens/cost per session.
 

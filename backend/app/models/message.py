@@ -25,7 +25,6 @@ class Message(UUIDBase, SQLModel, table=True):
     sequence: int = Field(index=True)
     role: MessageRole
     content: str
-    metadata_json: Optional[str] = Field(default=None)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     session: Optional["Session"] = Relationship(back_populates="messages")

@@ -19,11 +19,14 @@ def _utc_now() -> datetime:
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
-class TimestampBase(SQLModel):
+class CreatedAtBase(SQLModel):
     created_at: datetime = Field(
         default_factory=_utc_now,
         sa_column_kwargs={"server_default": func.now()},
     )
+
+
+class TimestampBase(CreatedAtBase):
     updated_at: datetime = Field(
         default_factory=_utc_now,
         sa_column_kwargs={
