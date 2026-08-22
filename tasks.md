@@ -40,7 +40,7 @@
 - [x] **2.7** Define `Message` model (append-only conversation history)  
   Fields: `id`, `session_id` (FK, indexed), `sequence`, `role` (user/assistant/system/tool), `content`, `created_at`.
 
-- [ ] **2.8** Index `Message` for ordered history retrieval  
+- [x] **2.8** Index `Message` for ordered history retrieval  
   Replace the standalone `Message.sequence` index with a composite `(session_id, sequence)` index. Generate Alembic migration.
 
 - [x] **2.9** Define `Artifact` model (per-iteration analysis outputs)  

@@ -27,6 +27,18 @@ def test_migration_creates_expected_tables():
             f"Expected index 'ix_user_email' not found in {user_indexes}"
         )
 
+        # Verify the composite index for ordered message retrieval replaced
+        # the standalone sequence/session_id indexes.
+        message_indexes = {idx["name"] for idx in inspector.get_indexes("message")}
+        assert "ix_message_session_id_sequence" in message_indexes, (
+            f"Expected composite index 'ix_message_session_id_sequence' "
+            f"not found in {message_indexes}"
+        )
+        assert "ix_message_sequence" not in message_indexes, (
+            f"Standalone 'ix_message_sequence' should have been replaced: "
+            f"{message_indexes}"
+        )
+
         # Verify at least one foreign key exists
         dataset_fks = {fk["name"] for fk in inspector.get_foreign_keys("dataset")}
         assert len(dataset_fks) > 0, "Expected at least one foreign key on 'dataset'"
