@@ -4,7 +4,7 @@ from functools import partial
 from pathlib import Path
 
 from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
+from langchain_core.messages import SystemMessage, ToolMessage
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.prebuilt import ToolNode
@@ -64,7 +64,7 @@ def profiler_node(
 
 def retry_node(_state: ProfilerState) -> dict:
     """Append a reminder when the last answer was not valid JSON."""
-    return {"messages": [HumanMessage(content=RETRY_PROMPT)]}
+    return {"messages": [SystemMessage(content=RETRY_PROMPT)]}
 
 
 def should_continue(state: ProfilerState) -> str:
