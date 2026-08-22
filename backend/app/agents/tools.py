@@ -1,5 +1,23 @@
 import re
+from typing import Any
+
+import yaml
 from langchain_core.tools import tool
+
+
+def parse_skill_frontmatter(content: str) -> dict[str, Any]:
+    """Parse the YAML frontmatter block of a SKILL.md into a dict.
+
+    Returns an empty dict when there is no valid frontmatter block.
+    """
+    fm_match = re.match(r"^---\s*\n(.*?)\n---", content, re.DOTALL)
+    if not fm_match:
+        return {}
+    try:
+        data = yaml.safe_load(fm_match.group(1))
+    except yaml.YAMLError:
+        return {}
+    return data if isinstance(data, dict) else {}
 
 
 def build_list_available_skills_tool(SKILLS_DIR):
@@ -15,17 +33,9 @@ def build_list_available_skills_tool(SKILLS_DIR):
             skill_id = path.parent.relative_to(SKILLS_DIR).as_posix()
             content = path.read_text(encoding="utf-8")
 
-            name = skill_id
-            description = ""
-            fm_match = re.match(r"^---\s*\n(.*?)\n---", content, re.DOTALL)
-            if fm_match:
-                fm = fm_match.group(1)
-                name_match = re.search(r"^name:\s*(.+)$", fm, re.MULTILINE)
-                desc_match = re.search(r"^description:\s*(.+)$", fm, re.MULTILINE)
-                if name_match:
-                    name = name_match.group(1).strip()
-                if desc_match:
-                    description = desc_match.group(1).strip()
+            frontmatter = parse_skill_frontmatter(content)
+            name = str(frontmatter.get("name") or skill_id)
+            description = str(frontmatter.get("description") or "")
 
             entry = f"- **{name}** (`{skill_id}`)"
             if description:

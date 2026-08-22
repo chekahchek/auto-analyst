@@ -19,6 +19,7 @@ def test_migration_creates_expected_tables():
         assert "dataset" in tables, f"Expected table 'dataset' not found in {tables}"
         assert "session" in tables, f"Expected table 'session' not found in {tables}"
         assert "message" in tables, f"Expected table 'message' not found in {tables}"
+        assert "artifact" in tables, f"Expected table 'artifact' not found in {tables}"
 
         # Verify at least one index exists
         user_indexes = {idx["name"] for idx in inspector.get_indexes("user")}

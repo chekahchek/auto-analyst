@@ -3,14 +3,14 @@ from uuid import UUID
 
 from sqlmodel import Field, Relationship, SQLModel
 
-from app.models.base import TimestampBase, UUIDBase
+from app.models.base import CreatedAtBase, UUIDBase
 
 if TYPE_CHECKING:
     from app.models.session import Session
     from app.models.user import User
 
 
-class Dataset(UUIDBase, TimestampBase, SQLModel, table=True):
+class Dataset(UUIDBase, CreatedAtBase, SQLModel, table=True):
     __tablename__ = "dataset"
 
     user_id: Optional[UUID] = Field(
@@ -18,7 +18,6 @@ class Dataset(UUIDBase, TimestampBase, SQLModel, table=True):
         foreign_key="user.id",
         index=True,
     )
-    filename: str
     original_filename: str
     storage_path: str
     domain: Optional[str] = None

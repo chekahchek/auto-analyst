@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from app.models import Dataset, Message, MessageRole, Session, User
+from app.models import Artifact, Dataset, Message, MessageRole, Session, User
 
 
 def test_user_instantiation():
@@ -12,13 +12,12 @@ def test_user_instantiation():
 
 def test_dataset_instantiation():
     dataset = Dataset(
-        filename="data.csv",
         original_filename="data.csv",
         storage_path="./data/datasets/1/input.csv",
         domain="finance",
         data_type="time-series",
     )
-    assert dataset.filename == "data.csv"
+    assert dataset.original_filename == "data.csv"
     assert dataset.domain == "finance"
     assert dataset.data_type == "time-series"
     assert isinstance(dataset.id, UUID)
@@ -26,14 +25,11 @@ def test_dataset_instantiation():
 
 
 def test_session_instantiation():
-    from decimal import Decimal
-
     session = Session(dataset_id=UUID(int=0))
     assert session.dataset_id == UUID(int=0)
-    assert session.cost_spent == Decimal("0.00")
-    assert session.dashboard_path is None
     assert isinstance(session.id, UUID)
     assert session.messages == []
+    assert session.artifacts == []
 
 
 def test_message_instantiation():
@@ -46,5 +42,19 @@ def test_message_instantiation():
     assert message.sequence == 1
     assert message.role == MessageRole.USER
     assert message.content == "Hello"
-    assert message.metadata_json is None
     assert isinstance(message.id, UUID)
+
+
+def test_artifact_instantiation():
+    artifact = Artifact(
+        session_id=UUID(int=0),
+        iteration=1,
+        hypotheses_evidence_json={"hypotheses": []},
+        narrative_json={"summary": "..."},
+        dashboard_path="/dashboards/1.html",
+    )
+    assert artifact.iteration == 1
+    assert artifact.hypotheses_evidence_json == {"hypotheses": []}
+    assert artifact.narrative_json == {"summary": "..."}
+    assert artifact.dashboard_path == "/dashboards/1.html"
+    assert isinstance(artifact.id, UUID)
