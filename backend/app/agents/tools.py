@@ -3,6 +3,10 @@ from typing import Any
 
 import yaml
 from langchain_core.tools import tool
+import tempfile
+import subprocess
+import sys
+from pathlib import Path
 
 
 def parse_skill_frontmatter(content: str) -> dict[str, Any]:
@@ -65,30 +69,47 @@ def build_read_skill_instructions_tool(SKILLS_DIR):
 def build_execute_python_script_tool():
     @tool
     def execute_python_script(code: str) -> str:
-        """Executes a block of Python code locally and returns stdout/stderr.
-        Use this to run the final adapted skill script.
+        """Executes a block of independent Python code in a subprocess and returns stdout/stderr.
+        Each call is fully isolated — imports and variables must be defined inside the code block.
+        i.e. If you are using pandas, you must always include `import pandas as pd` in the code block.
+        even if the previous code block already imported pandas.
         """
-        import sys
-        import io
-
-        old_stdout = sys.stdout
-        old_stderr = sys.stderr
-        redirected_output = sys.stdout = io.StringIO()
-        redirected_error = sys.stderr = io.StringIO()
+        timeout = 120  # adjust as needed
+        script_path = None
 
         try:
-            exec(code, {"__builtins__": __builtins__})
-            stdout_result = redirected_output.getvalue()
-            stderr_result = redirected_error.getvalue()
+            with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
+                f.write(code)
+                script_path = f.name
 
-            if stderr_result:
-                return f"Execution Error:\n{stderr_result}"
-            return f"Execution Success. Output:\n{stdout_result}"
+            result = subprocess.run(
+                [sys.executable, script_path],
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                check=False,
+            )
 
+            stdout = result.stdout
+            stderr = result.stderr
+
+            if result.returncode != 0:
+                return (
+                    f"Execution Error (exit {result.returncode}):\n{stderr}\n{stdout}"
+                )
+            if stderr:
+                return f"Execution Success (stderr present):\n{stderr}\n{stdout}"
+            return f"Execution Success.\n{stdout}"
+
+        except subprocess.TimeoutExpired:
+            return f"Execution timed out after {timeout} seconds."
         except Exception as e:
             return f"Runtime Exception: {str(e)}"
         finally:
-            sys.stdout = old_stdout
-            sys.stderr = old_stderr
+            if script_path:
+                try:
+                    Path(script_path).unlink(missing_ok=True)
+                except Exception:
+                    pass
 
     return execute_python_script

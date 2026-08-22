@@ -33,7 +33,7 @@ async def update_dataset_profile(
     graph: CompiledStateGraph,
     max_llm_calls: int,
 ) -> None:
-    """Run the profiler and persist data_type and domain on the Dataset row.
+    """Run the profiler and persist data_type on the Dataset row.
 
     Exceptions are swallowed and logged so that upload is not affected.
     """
@@ -51,11 +51,9 @@ async def update_dataset_profile(
                 return
 
             data_type = profile.get("data_type")
-            business_domain = profile.get("business_domain")
             dataset.data_type = (
                 json.dumps(data_type) if isinstance(data_type, list) else data_type
             )
-            dataset.domain = business_domain
             await session.commit()
         except Exception:
             logger.exception("Failed to update dataset %s profile", dataset_id)

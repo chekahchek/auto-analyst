@@ -14,11 +14,9 @@ def test_dataset_instantiation():
     dataset = Dataset(
         original_filename="data.csv",
         storage_path="./data/datasets/1/input.csv",
-        domain="finance",
         data_type="time-series",
     )
     assert dataset.original_filename == "data.csv"
-    assert dataset.domain == "finance"
     assert dataset.data_type == "time-series"
     assert isinstance(dataset.id, UUID)
     assert dataset.sessions == []

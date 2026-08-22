@@ -20,7 +20,6 @@ class Dataset(UUIDBase, CreatedAtBase, SQLModel, table=True):
     )
     original_filename: str
     storage_path: str
-    domain: Optional[str] = None
     data_type: Optional[str] = None
 
     user: Optional["User"] = Relationship(back_populates="datasets")

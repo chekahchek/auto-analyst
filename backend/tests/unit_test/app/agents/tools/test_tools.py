@@ -15,10 +15,10 @@ def skills_dir(tmp_path: Path) -> Path:
     skill_path.joinpath("SKILL.md").write_text(
         "---\n"
         "name: profile-data\n"
-        "description: Profiles an uploaded dataset to infer type and domain.\n Used for analysis\n"
+        "description: Profiles an uploaded dataset to infer data type.\n Used for analysis\n"
         "---\n\n"
         "## Overview\n\n"
-        "Analyse the dataset to deduce the type of data and the business domain.\n"
+        "Analyse the dataset to deduce the type of data.\n"
     )
     return skills_dir
 
@@ -28,7 +28,7 @@ def test_build_list_available_skills_tool(skills_dir):
     available_skills = list_available_skills.invoke({})
     assert "core/profile-data" in available_skills
     assert (
-        "Profiles an uploaded dataset to infer type and domain. Used for analysis"
+        "Profiles an uploaded dataset to infer data type. Used for analysis"
         in available_skills
     )
 

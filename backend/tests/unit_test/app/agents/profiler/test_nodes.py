@@ -117,7 +117,7 @@ async def test_build_profiler_graph(tmp_path, monkeypatch):
     bound_model = MagicMock()
     bound_model.invoke.side_effect = [
         AIMessage(content="not valid json"),
-        AIMessage(content='{"data_type": ["numeric"], "business_domain": "finance"}'),
+        AIMessage(content='{"data_type": ["numeric"]}'),
     ]
     model = MagicMock()
     model.bind_tools.return_value = bound_model
@@ -137,7 +137,5 @@ async def test_build_profiler_graph(tmp_path, monkeypatch):
     assert final_state["messages"][0].content == "start"
     assert final_state["messages"][1].content == "not valid json"
     assert final_state["messages"][2].content == RETRY_PROMPT
-    assert final_state["messages"][3].content == (
-        '{"data_type": ["numeric"], "business_domain": "finance"}'
-    )
+    assert final_state["messages"][3].content == '{"data_type": ["numeric"]}'
     assert final_state["llm_calls"] == 2

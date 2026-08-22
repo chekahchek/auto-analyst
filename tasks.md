@@ -22,7 +22,7 @@
 *Goal: ORM models, migrations, and file storage for datasets.*
 
 - [x] **2.1** Define SQLModel / SQLAlchemy model  
-  Fields: `id`, `user_id`, `original_filename`, `storage_path`, `domain`, `data_type`, `created_at`.
+  Fields: `id`, `user_id`, `original_filename`, `storage_path`, `data_type`, `created_at`.
 
 - [x] **2.2** Set up Alembic for migrations  
   Initialise, generate first migration, add to `docker-compose` startup or document run command.
@@ -63,7 +63,7 @@
   HTML/Plotly layout conventions, theming, responsive rules, accessibility defaults.
 
 - [x] **3.4** Author `core/profile-data/SKILL.md`  
-  CSV profiling conventions: infer domain, data type, and column semantics.
+  CSV profiling conventions: infer data type and column semantics.
 
 - [ ] **3.5** Author `core/critic-rubric/SKILL.md`  
   Scoring criteria (0–1), feedback format, and what constitutes a revision vs. an approval.
@@ -78,8 +78,8 @@
 
 *Goal: Shared state design before any loop node is built. Checkpointing strategy is decided later (5.9), once the nodes exist.*
 
-- [ ] **4.1** Define the `AnalystState` TypedDict for the main analysis graph  
-  `session_id`, `dataset_id`, `dataset_path`, `messages` (with `add_messages` reducer), `profile` (domain + data_type), `hypotheses_evidence`, `narrative`, `dashboard_path`, `dashboard_html`, `critic_score`, `critic_feedback`, `iteration_count`.
+- [x] **4.1** Define the `AnalystState` TypedDict for the main analysis graph  
+  `dataset_path`, `messages` (with `add_messages` reducer), `profile` (data_type), `hypotheses_evidence`, `narrative`, `dashboard_path`, `dashboard_html`, `critic_score`, `critic_feedback`, `iteration_count`.
 
 ---
 
@@ -88,7 +88,7 @@
 *Goal: The core analysis graph wired end-to-end. The agent self-loads skills per node via the existing tools (profiler pattern).*
 
 - [x] **5.1** Implement `profiler` node  
-  Self-loads `core/profile-data` skill; infers `domain` + `data_type`; result persisted on the Dataset row. Lives under `app/agents/profiler/`; invoked as a background task from `POST /datasets`.
+  Self-loads `core/profile-data` skill; infers `data_type`; result persisted on the Dataset row. Lives under `app/agents/profiler/`; invoked as a background task from `POST /datasets`.
 
 - [ ] **5.2** Implement `analyst` node  
   - Agent with tools: `list_available_skills`, `read_skill_instructions(skill_path)`, `execute_python_script(code)`, `read_dashboard_html()` (loads the current dashboard on demand from `dashboard_path`). It discovers and loads the relevant analytical skill, decides whether to run Python, or answers conversationally from existing `messages`.

@@ -31,7 +31,7 @@ sequenceDiagram
 
     U->>A: Upload CSV
     A->>P: Profile dataset
-    Note over P: Infer domain and data type
+    Note over P: Infer data type
     P->>P: Self-load core/profile-data skill
 
     A->>A: analyst
@@ -74,7 +74,7 @@ sequenceDiagram
 4. User sends the first message (set to be a default message in the frontend), e.g. `"Generate insights"`.
 5. Backend loads from the DB:
    - `messages`: `["Generate insights"]`
-   - `profile`: `{domain, data_type}`
+   - `profile`: `{data_type}`
    - `dataset_path`
    - no artifact rows yet (first iteration)
 6. Backend hydrates the `AnalystState` and invokes LangGraph
@@ -173,7 +173,6 @@ erDiagram
         uuid user_id FK
         string original_filename
         string storage_path
-        string domain
         string data_type
         timestamp created_at
     }

@@ -9,7 +9,7 @@ pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("apply_migrations
 
 
 async def test_update_dataset_profile_updates_db(monkeypatch):
-    profile = {"data_type": ["numeric", "categorical"], "business_domain": "retail"}
+    profile = {"data_type": ["numeric", "categorical"]}
 
     async def fake_run_profiler_graph(_storage_path, _graph, _max_llm_calls):
         return profile
@@ -34,7 +34,6 @@ async def test_update_dataset_profile_updates_db(monkeypatch):
         async with AsyncSessionLocal() as session:
             updated = await session.get(Dataset, dataset.id)
             assert updated.data_type == '["numeric", "categorical"]'
-            assert updated.domain == "retail"
     finally:
         async with AsyncSessionLocal() as session:
             row = await session.get(Dataset, dataset.id)
