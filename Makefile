@@ -8,7 +8,7 @@ lint:
 	uv --directory backend run ruff format .
 
 test:
-	uv --directory backend run pytest tests/unit_test
+	uv --directory backend run pytest tests/unit_test --cov=app --cov-report=term-missing
 
 test-integration:
 	APP_ENV=test uv --directory backend run pytest tests/integration_test
