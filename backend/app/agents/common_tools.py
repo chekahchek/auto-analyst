@@ -51,7 +51,9 @@ def build_list_available_skills_tool(SKILLS_DIR):
     return list_available_skills
 
 
-def build_read_skill_instructions_tool(SKILLS_DIR):
+def build_read_skill_instructions_tool(
+    SKILLS_DIR, output_format_instructions: str | None = None
+):
     @tool
     def read_skill_instructions(skill_name: str) -> str:
         """Loads the full step-by-step instructions and python code template for a specific skill.
@@ -59,7 +61,10 @@ def build_read_skill_instructions_tool(SKILLS_DIR):
         try:
             file_path = SKILLS_DIR / skill_name / "SKILL.md"
             with open(file_path, "r", encoding="utf-8") as f:
-                return f.read()
+                skills_content = f.read()
+            if output_format_instructions and "analytical/" in skill_name:
+                skills_content += "\n\n" + output_format_instructions
+            return skills_content
         except FileNotFoundError:
             return f"Error: Skill '{skill_name}' not found."
 

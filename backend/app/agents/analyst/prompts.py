@@ -1,3 +1,4 @@
+# Format for the output of hypotheses generation
 OUTPUT_FORMAT_INSTRUCTIONS = """\
 ## What Makes an Insight Worth Surfacing
 
@@ -113,3 +114,36 @@ Pass a single JSON object as the `hypotheses_evidence` argument. Do not wrap it 
 
 Keep the tone analytical but accessible. The user may not be a statistician — translate technical findings into business language.
 """
+
+
+ANALYST_SYSTEM_PROMPT_TEMPLATE = (
+    "You are an expert in data analysis. You are given a path to a dataset as well as what category "
+    "the data belongs to.\n"
+    "Dataset path: {dataset_path}\n"
+    "Data category: {data_type}\n\n"
+    "Your job is to analyse the dataset using available tools and generate comprehensive insights from "
+    "them. Begin by loading up the relevant skill based on the category before analysing it. You must "
+    "adhere to the output instructions provided in the skill instructions.\n"
+    "If the user is asking a general or conversational question that does not require analysing the "
+    "dataset, answer directly without tools or skills.\n"
+    "When you are ready to submit your final answer on the insights, use the "
+    "`submit_hypotheses_evidence` tool to submit it."
+)
+
+# Follow up context is appended to analyst system prompt if there are previous analysis artifacts
+FOLLOW_UP_CONTEXT_TEMPLATE = (
+    "A previous analysis already exists for this conversation. Use it to answer follow-up questions "
+    "directly; only run a new analysis if the question cannot be answered from it.\n\n"
+    "{context}"
+)
+
+STORYTELLER_SKILL_ID = "core/storytelling"
+
+
+STORYTELLER_PROMPT_TEMPLATE = (
+    "You are an expert in storytelling. You have been given a set of insights from a data analysis "
+    "performed by an analyst agent.\n"
+    "Your job is to create a compelling narrative that communicates these insights effectively.\n"
+    "The skill instructions below provide guidance on how to structure the narrative:\n"
+    "{skill_instructions}"
+)
