@@ -8,14 +8,12 @@ from uuid import UUID
 logger = logging.getLogger(__name__)
 
 _PLOTLY_REFERENCE_RE = re.compile(
-    r'(?P<div><div\b'
+    r"(?P<div><div\b"
     r'(?=[^>]*\bid=["\']plotly-(?P<index>\d+)["\'])'
     r'(?=[^>]*\bdata-plotly-figure=["\'](?P<reference>[^"\']+)["\'])'
-    r'[^>]*></div>)',
+    r"[^>]*></div>)",
 )
-_PLOTLY_REFERENCE_ATTRIBUTE_RE = re.compile(
-    r'\sdata-plotly-figure=["\'][^"\']+["\']'
-)
+_PLOTLY_REFERENCE_ATTRIBUTE_RE = re.compile(r'\sdata-plotly-figure=["\'][^"\']+["\']')
 
 
 async def save_dashboard_html(
@@ -47,9 +45,9 @@ def materialize_dashboard_html(dashboard_html: str, figures_dir: Path) -> str:
     loading only the session's figure files and adding the corresponding Plotly
     calls. The input HTML is not modified.
 
-    Convert the HTML that has Plotly figure references to fully inlined so that it can be 
-    displayed in the frontend. This is done by replaciing the <div id="plotly-{idx}"... <div> 
-    with a script that calls Plotly.newPlot with the figure JSON loaded from the corresponding file. 
+    Convert the HTML that has Plotly figure references to fully inlined so that it can be
+    displayed in the frontend. This is done by replaciing the <div id="plotly-{idx}"... <div>
+    with a script that calls Plotly.newPlot with the figure JSON loaded from the corresponding file.
     """
     figures_root = Path(figures_dir).resolve()
 
@@ -89,7 +87,7 @@ def materialize_dashboard_html(dashboard_html: str, figures_dir: Path) -> str:
             "<script>\n"
             "  (() => {\n"
             f"    const figure = {figure_json};\n"
-            f"    Plotly.newPlot(\"plotly-{index}\", figure.data || [], "
+            f'    Plotly.newPlot("plotly-{index}", figure.data || [], '
             "figure.layout || {}, figure.config || {});\n"
             "  })();\n"
             "</script>"

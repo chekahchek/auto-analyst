@@ -60,9 +60,7 @@ def test_build_read_dashboard_tool(tmp_path):
 
 def test_build_read_dashboard_tool_missing_file(tmp_path):
     read_dashboard = build_read_dashboard_tool()
-    result = read_dashboard.invoke(
-        {"file_path": str(tmp_path / "no_dashboard.html")}
-    )
+    result = read_dashboard.invoke({"file_path": str(tmp_path / "no_dashboard.html")})
     assert "No dashboard HTML found" in result
 
 

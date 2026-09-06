@@ -335,9 +335,7 @@ def test_frontend_designer_node_injects_figure_reference(tmp_path, monkeypatch):
     model = MagicMock()
     model.invoke.return_value = AIMessage(
         content=(
-            "<html><body>"
-            f"{PLOTLY_FIGURE_TOKEN_TEMPLATE.format(index=0)}"
-            "</body></html>"
+            f"<html><body>{PLOTLY_FIGURE_TOKEN_TEMPLATE.format(index=0)}</body></html>"
         )
     )
 

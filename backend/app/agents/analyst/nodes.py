@@ -38,6 +38,7 @@ from app.agents.common_tools import (
 
 logger = logging.getLogger(__name__)
 
+
 def _format_data_type(data_type) -> str:
     if isinstance(data_type, list):
         return ", ".join(str(dt) for dt in data_type)
@@ -100,10 +101,7 @@ def _inject_figures(html: str, narrative: dict) -> str:
             return ""
 
         safe_reference = escape_html(figure_reference, quote=True)
-        return (
-            f'<div id="plotly-{idx}" '
-            f'data-plotly-figure="{safe_reference}"></div>'
-        )
+        return f'<div id="plotly-{idx}" data-plotly-figure="{safe_reference}"></div>'
 
     return PLOTLY_FIGURE_TOKEN.sub(repl, html)
 
