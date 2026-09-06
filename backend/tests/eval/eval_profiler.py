@@ -38,6 +38,7 @@ async def call_api(prompt, options, context):
             model=model_name,
             api_key=settings.api_key,
             base_url=settings.api_base_url,
+            reasoning_effort=settings.reasoning_effort or None,
         )
 
     compiled_graph = build_profiler_graph(SKILLS_DIR, model)

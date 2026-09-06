@@ -12,7 +12,7 @@ class EvidenceChart(TypedDict):
     title: str
     insight_index: int
     description: str
-    figure: dict
+    figure: str
 
 
 class HypothesesEvidence(TypedDict):
@@ -42,7 +42,7 @@ class Slide(TypedDict):
 class NarrativeChart(TypedDict):
     title: str
     description: str
-    figure: dict
+    figure: str
 
 
 class Narrative(TypedDict):
@@ -51,11 +51,17 @@ class Narrative(TypedDict):
     charts: list[NarrativeChart]
 
 
+class StorytellerOutput(TypedDict):
+    central_question: str
+    slides: list[Slide]
+
+
 # hypotheses_evidence, narrative, dashboard_html are not stored as array even though user can have
 # multiple artifacts. This is because for follow-up convo, we append them to the system prompt
 # and the state here is used for langgraph invocation only.
 class AnalystState(TypedDict):
     dataset_path: str
+    figures_dir: str
     messages: Annotated[Sequence[BaseMessage], add_messages]
     profile: DatasetProfile
     hypotheses_evidence: HypothesesEvidence | None

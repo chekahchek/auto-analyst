@@ -20,6 +20,7 @@ def get_model() -> BaseChatModel:
             model=_settings.model,
             api_key=_settings.api_key,
             base_url=_settings.api_base_url,
+            reasoning_effort=_settings.reasoning_effort or None,
         )
     else:
         raise ValueError(

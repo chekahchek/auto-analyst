@@ -57,3 +57,4 @@ secret.ini
 docs/superpowers/*
 data/
 slidedecks/
+.coverage

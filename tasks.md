@@ -90,18 +90,18 @@
 - [x] **5.1** Implement `profiler` node  
   Self-loads `core/profile-data` skill; infers `data_type`; result persisted on the Dataset row. Lives under `app/agents/profiler/`; invoked as a background task from `POST /datasets`.
 
-- [ ] **5.2** Implement `analyst` node  
-  - Agent with tools: `list_available_skills`, `read_skill_instructions(skill_path)`, `execute_python_script(code)`, `read_dashboard_html()` (loads the current dashboard on demand from `dashboard_path`). It discovers and loads the relevant analytical skill, decides whether to run Python, or answers conversationally from existing `messages`.
+- [x] **5.2** Implement `analyst` node  
+  - Agent with tools: `list_available_skills`, `read_skill_instructions(skill_path)`, `execute_python_script(code)`, `read_dashboard()` (loads the current dashboard on demand from `dashboard_path`). It discovers and loads the relevant analytical skill, decides whether to run Python, or answers conversationally from existing `messages`.
   - Agent outputs structured JSON: `{"message": "....", "hypotheses_evidence": [...]}` where hypotheses_evidence is generated for first-time message or subsequent follow-up analysis.
   - If `hypotheses_evidence` is set, route to `storyteller`
   - Retry code errors (max 2 per script). Skip persistent failures and note in dashboard.
   - On `max_llm_calls` exhaustion, route to a node that appends a graceful "budget reached" message. Every run must end with a clean, content-only assistant message (see design_spec.md § Conversation State).
 
-- [ ] **5.3** Implement `storyteller` node  
+- [x] **5.3** Implement `storyteller` node  
   Loads `core/storytelling-dashboard` skill; restructures `hypotheses_evidence` into a `narrative` stored in state.
 
-- [ ] **5.4** Implement `frontend_designer` node  
-  Loads `core/frontend-design` skill; renders `narrative` + figures into Jinja2 HTML. Stores `dashboard_html` in state. Save to `./data/sessions/{session_id}/dashboard.html`.
+- [x] **5.4** Implement `frontend_designer` node  
+  Loads `core/frontend-design` skill; renders the narrative into reference-based HTML with declarative chart placeholders. Stores the reference-based `dashboard_html` in state and saves it to `./data/sessions/{session_id}/dashboard.html`. Plotly JSON is not loaded into the LLM prompt or stored HTML at this stage.
 
 - [ ] **5.5** Implement `critic` node  
   Loads `core/critic-rubric` skill; reviews `dashboard_html`; returns `score` (0–1) and `feedback`.
@@ -111,8 +111,8 @@
   - `score < threshold` → loop back to `storyteller` (or `frontend_designer` if feedback is purely visual).  
   - Max 3 iterations; abort if score delta stalls (< 0.05 between iterations).
 
-- [ ] **5.7** Wire full graph  
-  `analyst` → conditional on `hypotheses_evidence` present → either `[storyteller → frontend_designer → critic loop] → response → persist` or `persist` → END. `response` composes the chat-facing assistant message (summary of findings); `persist` writes the turn's two message rows (user + final assistant, content only) plus updated artifacts.
+- [x] **5.7** Wire full graph  
+  `analyst` → conditional on `hypotheses_evidence` present → either `[storyteller → frontend_designer → critic loop] → response → persist` or `persist` → END. `response` composes the chat-facing assistant message (summary of findings). Persistence happens only after processing completes successfully; it writes the turn's two message rows (user + final assistant, content only) plus updated artifacts without creating partial records on failure.
 
 - [ ] **5.8** Add error handling and retry logic  
   LLM exponential backoff (max 3 retries per node); graph panic → log traceback and return 500 with reference ID.
@@ -141,14 +141,18 @@
   Create a session only if the dataset does not have one already. The analysis graph is invoked by the first chat message (6.5), not here.
 
 - [ ] **6.4** `GET /sessions/{id}` — Get session  
-  Return session metadata + `dashboard_html` content if the latest artifact has a `dashboard_path` set.
+  Query the session and latest artifact, then return session metadata plus the dashboard HTML with Plotly figure JSON materialized inline when a `dashboard_path` is set. The reference-based dashboard remains the persisted source artifact.
 
 - [ ] **6.5** `POST /sessions/{id}/chat` — Send message (first or follow-up)  
-  Append user message to `message` table; hydrate graph state with ordered history, dataset path, profile, and all artifact iterations (system block); invoke analysis graph; persist a new message pair and any new artifact row; return response and dashboard if generated.
+  Query the database before graph execution and enrich `AnalystState` with the ordered conversation history, dataset path, profile, figures directory, and all prior artifact metadata. Invoke the analysis graph, then only after successful processing persist the user/final assistant message pair and any new or updated artifact in one transaction. Return the response and, when generated, dashboard HTML with Plotly figure JSON materialized inline.
 
 - [ ] **6.6** Add global exception handlers (malformed CSV → 400, graph panic → 500 with reference ID).
 
 - [ ] **6.7** Write integration tests for all endpoints with mocked LLM.
+
+- [x] **6.8** Implement dashboard delivery materialization
+  
+- [ ] 6.9 Read the persisted reference-based dashboard and its session-scoped figure files, replace chart references with inline Plotly data for API responses, and never persist a second inline dashboard copy.
 
 ---
 
