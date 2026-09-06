@@ -21,7 +21,7 @@ A self-improving agentic system for data analysis. The user uploads a CSV, an ag
 | `/sessions/{id}/chat` | `POST` | Send a message (first or follow-up). Hydrates state, invokes analysis graph, returns response and dashboard if generated. |
 
 
-### Runtime Flow
+## Runtime Flow
 
 ```mermaid
 sequenceDiagram
@@ -49,7 +49,7 @@ sequenceDiagram
     A-->>U: Deliver dashboard
 ```
 
-### Conversation State
+## Conversation State
 
 **Within a run**, `messages` holds the full working context: every tool call and tool result. This scratchpad is discarded when the run ends.
 
@@ -60,24 +60,51 @@ sequenceDiagram
 - Analysis path: a response node composes a summary after the build loop.
 - Budget exhaustion: a node appends a "budget reached" message instead of stopping mid-tool-call.
 
-**Artifacts are separate rows, not messages.** Each analysis-producing turn writes one `artifact` row keyed by `session_id + iteration`, holding `hypotheses_evidence_json`, `narrative_json`, and `dashboard_path`. On follow-up hydration:
+**Artifacts are separate rows, not messages.** Each analysis-producing turn writes one `artifact` row keyed by `session_id + iteration`, holding `hypotheses_evidence_json`, `narrative_json` (do not include the full plotly graphs, only the pointer referencing it), and `dashboard_path`. On follow-up hydration:
 - The transcript (`message` rows) is injected as `user`/`assistant` messages.
-- All artifact iterations are injected as a single system block, so the LLM can reference any prior iteration (e.g. "where did iteration 1's data come from").
+  - All artifact iterations are injected as a single system block (light metadata only — no `figure`), so the LLM can reference any prior iteration.
 - The latest dashboard HTML is read on demand via a tool from its `dashboard_path`.
-- `llm_calls` resets to 0; cost is tracked in logs/OTel, not in a DB column.
 
+**The dashboard is latest-only.** A single `dashboard.html` per session, overwritten on render or edit; `dashboard_path` always points at the current render and is not versioned by `iteration` (which versions the analysis only).
+
+### Plotly Figures
+One hard rule: **large data (Plotly `figure` JSON) never goes into an LLM prompt.** An LLM cannot copy a big blob back out verbatim — it emits placeholders like `{"fig_placeholder": true}` instead. So figures live on disk as files, moved by code; the LLM only ever handles words and small references.
+
+| Tier | What it holds 
+|---|---
+| `figures/<i>.json` (session-scoped) | one Plotly figure per chart, stable identity by index 
+| state (in-memory) | `hypotheses_evidence`, `narrative` — holds the pointer to each figure, not the JSON 
+| DB `artifact` | `hypotheses_evidence_json`, `narrative_json`, `dashboard_path` — pointer only, no figure JSON 
+| LLM prompt | insight text + chart titles/descriptions + `dashboard_path` 
+
+
+The full figure JSON never lives in state — state only holds a pointer (the file path) to each figure. This is how the plotly figures are processed:
+
+1. Analyst node generates the plotly figures and saves them to disk as `figures/<i>.json` in `sessions/<id>/` directory
+2. Analyst submits `hypotheses_evidence` where each chart's `figure` is a pointer (file path) to the figure, not the JSON
+
+3. In the storyteller node, the pointer is removed prior to the LLM call, since the storyteller only needs the title/description to organise the story. The code in the storyteller node then builds the `narrative` with the pointer kept alongside each chart
+4. In the frontend designer node, the pointer is stripped away before the LLM call. The LLM writes HTML with `__PLOTLY_FIGURE_<i>__` as a placement placeholder. The code in the frontend designer node replaces each placeholder with a declarative reference to the saved figure filename; it does not load or inline the figure JSON.
+5. `dashboard_html` is stored to disk holding lightweight references to the figures. Before returning a dashboard to the browser, the backend materializes those references into inline Plotly data; that delivery representation is not persisted as a second dashboard copy.
+
+
+For follow-up conversation:
+
+1. `read_dashboard` and `read_figure(index)` are provided to the analyst node so that it can read the artifacts that are stored in disk at `sessions/<id>/` path
+2. If user wants to edit the dashboard/figures, `execute_python_script` tool is used to update the figure and `update_dashboard_html` is used to update the HTML and store them to disk. These tools are directly accessible in the analyst node without needing to generate the hypotheses again.
 ### First-time Conversation Flow
 
 1. User uploads CSV.
 2. Backend creates a dataset and a session, then triggers the profiler in the background.
 3. Backend returns `dataset_id` and `session_id` to the user.
 4. User sends the first message (set to be a default message in the frontend), e.g. `"Generate insights"`.
-5. Backend loads from the DB:
-   - `messages`: `["Generate insights"]`
-   - `profile`: `{data_type}`
-   - `dataset_path`
-   - no artifact rows yet (first iteration)
-6. Backend hydrates the `AnalystState` and invokes LangGraph
+5. Backend queries the DB and enriches the graph state before execution:
+    - `messages`: `["Generate insights"]`
+    - `profile`: `{data_type}`
+    - `dataset_path`
+    - `figures_dir`
+    - no artifact rows yet (first iteration)
+6. Backend hydrates the complete `AnalystState` and invokes LangGraph
 7. Analyst node:
    - Discovers and loads the relevant analytical skill via `read_skill_instructions`.
    - Calls `execute_python_script` to run Python on the dataset.
@@ -91,10 +118,10 @@ sequenceDiagram
    - Conditional edge to continue to Critic node with the full context
 10. Critic Node: scores the dashboard; if below threshold, the loop revises narrative or design (max 3 iterations).
 11. Response node composes the chat-facing assistant message (summary of findings) and appends it to `messages`.
-12. Backend persists to the DB:
-   - The initial message
-   - One `artifact` row: `iteration=1`, `hypotheses_evidence_json`, `narrative_json`, `dashboard_path`
-13. Backend returns the response and dashboard to the user.
+12. After graph processing completes successfully, the backend persists to the DB in one transaction:
+    - The initial message
+    - One `artifact` row: `iteration=1`, `hypotheses_evidence_json`, `narrative_json`, `dashboard_path`
+13. Backend materializes the reference-based dashboard and returns the response with inline Plotly data to the user.
 
 ### Follow-up Conversation Flow
 
@@ -102,20 +129,23 @@ sequenceDiagram
 2. Backend loads from the DB:
    - Clean transcript (user + final assistant messages of past turns)
    - `profile`, `dataset_path`
-   - All artifact iterations (`hypotheses_evidence_json` + `narrative_json` per row) injected as a system prompt
+   - All artifact iterations (`hypotheses_evidence_json` + `narrative_json` per row) injected as a system prompt, light metadata only (insights + chart titles/descriptions — no `figure`)
 3. Backend hydrates the `AnalystState` (see Conversation State) and invokes LangGraph.
-4. Analyst node decides whether to answer from the existing context or run new analysis.
+4. Analyst node decides whether to answer from the existing context, edit the dashboard, or run new analysis.
 5. **Conversation path** (no new analysis needed):
    - The analyst node appends the answer directly to `messages`.
    - The graph returns the final state.
-6. **New analysis path**:
+6. **Dashboard edit path** (no new analysis, dashboard changes):
+   - `read_dashboard` returns the HTML with references to the figure files; the analyst edits text/structure and submits via `update_dashboard_html`.
+   - Figure edits use `read_figure(index)` + `execute_python_script` to rewrite `figures/<i>.json` in place — the HTML already references the file, so nothing is re-rendered.
+7. **New analysis path**:
    - The analyst node loads the relevant skill via `read_skill_instructions`.
    - It calls `execute_python_script` to run new Python code.
    - It produces new `hypotheses_evidence`, stored as a new artifact iteration.
    - Storyteller, frontend designer, and critic loop regenerate the narrative and dashboard.
    - Response node composes the assistant message.
-7. Backend persists the turn's two message rows and a new artifact row (`iteration` incremented) to the DB.
-8. Backend returns the response and dashboard (if regenerated) to the user.
+8. After graph processing completes successfully, the backend persists the turn's two message rows. A new artifact row (`iteration` incremented) is written only for the new-analysis path; a dashboard edit overwrites the existing reference-based render in place.
+9. Backend materializes the reference-based dashboard and returns the response with inline Plotly data (if a dashboard was generated or updated) to the user.
 
 
 ## Skill Registry
@@ -296,4 +326,4 @@ flowchart LR
 - **SSM Parameter Store** — stores Anthropic API key, DB credentials, GitHub token. Free tier; no need for Secrets Manager at this scale.
 
 ## Open questions
-- Should intermediate artifacts (dataframes, generated code, plotly figures) be persisted to disk to enable analytical follow-ups (e.g. "show me the raw data behind chart 3")? For MVP they are treated as transient agent working memory. Revisit post-MVP.
+- Plotly figures are persisted as files under a session-scoped `figures/` dir and referenced by the dashboard HTML, but stay out of the LLM — see *Plotly Figures*. Dataframes and generated code remain transient working memory; a follow-up like "show me the raw data behind chart 3" needs those persisted, which is still open for post-MVP.
