@@ -1,4 +1,4 @@
-.PHONY: setup lint install-hooks migration migrate
+.PHONY: setup lint install-hooks migration migrate eval
 
 setup:
 	uv --directory backend sync
@@ -14,7 +14,13 @@ test-integration:
 	APP_ENV=test uv --directory backend run pytest tests/integration_test
 
 eval:
-	promptfoo eval -c backend/tests/eval
+	@OPENAI_API_KEY="$$(uv --directory backend run python -c 'from app.config import Settings; print(Settings.from_ini().api_key)')" \
+	 OPENAI_API_BASE_URL="$$(uv --directory backend run python -c 'from app.config import Settings; print(Settings.from_ini().api_base_url)')" \
+	 OPENCODE_SESSION_ID="$$(uuidgen)" \
+	 promptfoo eval -c backend/tests/eval
+
+eval-view:
+	promptfoo view
 
 install-hooks:
 	cp hooks/pre-commit .git/hooks/pre-commit

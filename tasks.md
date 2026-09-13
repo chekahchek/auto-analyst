@@ -123,7 +123,7 @@
 - [ ] **5.10** Implement checkpointing in key nodes  
   Configure the analyst ReAct agent and the main graph to use `PostgresSaver`. Checkpoint after `analyst` node completion and after each critic iteration.
 
-- [ ] **5.11** Write unit tests for each node in isolation (mocked LLM / filesystem).
+- [x] **5.11** Write unit tests for each node in isolation (mocked LLM / filesystem).
 
 ---
 
@@ -181,7 +181,7 @@
 
 - [ ] **8.2** Integration tests — full graph end-to-end with frozen CSV fixtures + cached LLM responses. Assert expected HTML sections present.
 
-- [ ] **8.3** Eval / regression tests under `tests/eval/`  
+- [x] **8.3** Eval / regression tests under `tests/eval/`  
   Frozen CSVs + expected dashboard attributes. Run on PRs.
 
 - [ ] **8.4** Mock LLM client by default; real calls gated by env var (`ENABLE_LIVE_LLM=1`).

@@ -295,8 +295,14 @@ def frontend_designer_node(
 def build_analyst_graph(
     skills_dir: Path,
     model: BaseChatModel,
+    interrupt_after: list[str] | None = None,
 ) -> CompiledStateGraph:
-    """Build and compile the analyst LangGraph."""
+    """Build and compile the analyst LangGraph.
+
+    ``interrupt_after`` is useful for stage-level tests and evals that need to
+    inspect an intermediate artifact without invoking downstream builder nodes.
+    Normal application callers should leave it unset.
+    """
     list_available_skills = build_list_available_skills_tool(skills_dir)
     read_skill_instructions = build_read_skill_instructions_tool(
         skills_dir,
@@ -363,4 +369,4 @@ def build_analyst_graph(
     workflow.add_edge("storyteller", "frontend_designer")
     workflow.add_edge("frontend_designer", END)
 
-    return workflow.compile()
+    return workflow.compile(interrupt_after=interrupt_after)
