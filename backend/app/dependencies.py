@@ -1,3 +1,4 @@
+import uuid
 from app.config import Settings
 from app.services.storage import DatasetStorageService
 from langchain_core.language_models import BaseChatModel
@@ -21,6 +22,7 @@ def get_model() -> BaseChatModel:
             api_key=_settings.api_key,
             base_url=_settings.api_base_url,
             reasoning_effort=_settings.reasoning_effort or None,
+            default_headers={"X-Opencode-Session": str(uuid.uuid4())},
         )
     else:
         raise ValueError(

@@ -5,16 +5,74 @@ prompts:
 
 providers:
   - id: python:file://eval_profiler.py
+  - id: python:file://eval_analyst.py
 
 tests:
   - description: Profiler returns expected value from dataset
     provider: python:file://eval_profiler.py
 
     vars:
-      model: kimi-k2.5
-      storage_path: data/GraduateEmploymentSurveyNTUNUSSITSMUSUSSSUTD.csv
+      model: deepseek-v4-flash
+      storage_path: tests/eval/fixtures/eval_data.csv
       expected_value: panel
 
     assert:
       - type: python
         value: file://assert_profiler.py
+
+  - description: Analyst produces grounded hypotheses and evidence
+    provider: python:file://eval_analyst.py
+
+    vars:
+      stage: analyst
+      model: deepseek-v4-flash
+      data_type: panel
+      question: >-
+        Generate insights for this dataset. It is a simple dataset so do not need to overthink. Just keep it very simple.
+      min_insights: 2
+      min_charts: 1
+
+    assert:
+      - type: python
+        value: file://assert_analyst.py
+
+  - description: Storyteller creates a complete narrative from hypotheses and evidence
+    provider: python:file://eval_analyst.py
+
+    vars:
+      stage: storyteller
+      model: deepseek-v4-flash
+      input_fixture: tests/eval/fixtures/hypotheses_evidence.json
+      source_evidence: file://fixtures/hypotheses_evidence.json
+
+    assert:
+      - type: llm-rubric
+        provider:
+          id: openai:chat:deepseek-v4-flash
+          config:
+            timeout: 600000
+            headers:
+              X-Opencode-Session: "{{ env.OPENCODE_SESSION_ID }}"
+        threshold: 0.5
+        value: |
+          Evaluate the response as a data storyteller.
+          Use the supplied source insights and chart descriptions as the factual reference.
+          Ignore chart file paths and the provider's source counts.
+
+          Score the candidate from 0.0 to 1.0 based on these criteria:
+          - Narrative flow: it has a clear central question or hook, progresses logically
+            from context through evidence to a takeaway, and does not read like a
+            disconnected list of slides.
+          - Meaning and implications: it explains what the findings mean and why they
+            matter, rather than merely repeating numbers or chart titles. Conclusions,
+            decisions, or cautions should follow from the evidence where appropriate.
+          - Grounding: its important claims are supported by the supplied insights and
+            charts, without material contradictions or invented key findings.
+
+          A coherent, useful, mostly grounded story should score at least 0.5 even if it
+          omits optional findings or is not especially polished. A story that lacks a
+          sensible progression, does not interpret the findings, or materially misstates
+          the evidence should score below 0.5.
+
+          SUPPLIED SOURCE EVIDENCE:
+          {{ source_evidence | dump }}
