@@ -354,16 +354,12 @@ def build_analyst_graph(
 
     workflow = StateGraph(AnalystState)
 
-    workflow.add_node(
-        "analyst", analyst_node_fn, retry_policy=RetryPolicy()
-    )
+    workflow.add_node("analyst", analyst_node_fn, retry_policy=RetryPolicy())
     workflow.add_node("analyst_tools", tool_node)
     workflow.add_node("retry", retry_node)
     workflow.add_node("parse", parse_analyst_output_node)
     workflow.add_node("finalize_dashboard", parse_dashboard_output_node)
-    workflow.add_node(
-        "storyteller", storyteller_node_fn, retry_policy=RetryPolicy()
-    )
+    workflow.add_node("storyteller", storyteller_node_fn, retry_policy=RetryPolicy())
     workflow.add_node(
         "frontend_designer",
         frontend_designer_node_fn,
