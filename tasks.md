@@ -76,7 +76,7 @@
 
 ## Phase 4: State Schema
 
-*Goal: Shared state design before any loop node is built. Checkpointing strategy is decided later (5.9), once the nodes exist.*
+*Goal: Shared state design before any loop node is built. Persistent checkpointing is deferred until resumable runs are needed.*
 
 - [x] **4.1** Define the `AnalystState` TypedDict for the main analysis graph  
   `dataset_path`, `messages` (with `add_messages` reducer), `profile` (data_type), `hypotheses_evidence`, `narrative`, `dashboard_path`, `dashboard_html`, `critic_score`, `critic_feedback`, `iteration_count`.
@@ -114,16 +114,10 @@
 - [x] **5.7** Wire full graph  
   `analyst` → conditional on `hypotheses_evidence` present → either `[storyteller → frontend_designer → critic loop] → response → persist` or `persist` → END. `response` composes the chat-facing assistant message (summary of findings). Persistence happens only after processing completes successfully; it writes the turn's two message rows (user + final assistant, content only) plus updated artifacts without creating partial records on failure.
 
-- [ ] **5.8** Add error handling and retry logic  
+- [x] **5.8** Add error handling and retry logic
   LLM exponential backoff (max 3 retries per node); graph panic → log traceback and return 500 with reference ID.
 
-- [ ] **5.9** Define Postgres checkpointing strategy
-  Use LangGraph's built-in `PostgresSaver`. Use a fresh `thread_id` per chat message (e.g., `f"{session_id}:{message_id}"`). The checkpointer stores the internal graph state during a single run (ReAct tool-call loops, critic iterations). The application DB (`message` table + `session` columns) remains the source of truth across messages. Do not use the checkpointer as a user-facing conversation store.
-
-- [ ] **5.10** Implement checkpointing in key nodes  
-  Configure the analyst ReAct agent and the main graph to use `PostgresSaver`. Checkpoint after `analyst` node completion and after each critic iteration.
-
-- [x] **5.11** Write unit tests for each node in isolation (mocked LLM / filesystem).
+- [x] **5.9** Write unit tests for each node in isolation (mocked LLM / filesystem).
 
 ---
 
@@ -252,6 +246,26 @@
 - [ ] **11.9** CloudWatch / X-Ray — centralised logging and tracing.
 
 - [ ] **11.10** GitHub Actions — CI/CD pipeline for skill registry sync + cache invalidation.
+
+---
+
+## Phase 12: Resume Failed Runs *(Deferred)*
+
+*Goal: Continue an analysis after a later graph node fails, without using checkpoints as the conversation history.* A session_id is  a whole user conversation and each user's question is linked to a run_id. For conversation, the client submits a request to the `chat` endpoint. If the endpoint return an error e.g. nodes crash halfway, it should return a `run_id`. The `run_id` can be used by the client in the `retry` endpoint to hydrate the graph using the saved checkpoint and resume the failed run.
+- [ ] **12.1** Add an `analysis_run` model and migration
+  Store the `run_id`, `session_id`, status (`running`, `failed`, `succeeded`), retry count, error reference, and timestamps. A retry uses the same run ID; a new follow-up message gets a new run ID.
+
+- [ ] **12.2** Add Postgres checkpointing to the analyst graph
+  Use LangGraph's Postgres checkpointer and pass the run ID as `thread_id`. The normal message and artifact tables remain the source of truth for conversation history.
+
+- [ ] **12.3** Add the two API endpoints needed for runs
+  Keep `POST /sessions/{id}/chat` for new user messages. Add `POST /sessions/{id}/runs/{run_id}/retry` for failed runs. The retry resumes with `graph.ainvoke(None, config)` instead of starting with the original state again. Do not retry runs that are already running or succeeded.
+
+- [ ] **12.4** Decide how long to keep checkpoints
+  Delete checkpoints after the final message and artifacts are saved. Keep failed runs for a short period so they can be retried. Start with synchronous checkpoint writes and switch to asynchronous writes only if needed.
+
+- [ ] **12.5** Keep checkpoint data small
+  Do not put large dashboard, figure, or Python output data in `messages`. Store large data in files or return a short summary instead. Add a test for resuming after a downstream node fails.
 
 ---
 
