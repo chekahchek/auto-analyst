@@ -125,10 +125,10 @@
 
 *Goal: Expose the graph via REST API.*
 
-- [ ] **6.1** `POST /datasets` — Upload CSV  
+- [x] **6.1** `POST /datasets` — Upload CSV  
   Save file, create dataset record, create a session for the dataset, trigger profiler graph node asynchronously, return `dataset_id` and `session_id`.
 
-- [ ] **6.2** `GET /datasets` — List user's datasets  
+- [x] **6.2** `GET /datasets` — List user's datasets  
   Return list with profile metadata; filter by current user (auth placeholder if no auth yet).
 
 - [ ] **6.3** `POST /datasets/{id}/sessions` — Create session *(manual fallback)*  
