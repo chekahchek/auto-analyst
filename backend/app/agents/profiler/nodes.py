@@ -8,7 +8,7 @@ from langchain_core.messages import SystemMessage, ToolMessage
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.prebuilt import ToolNode
-
+from langgraph.types import RetryPolicy
 from app.agents.profiler.prompts import (
     PROFILER_SKILL_ID,
     RETRY_PROMPT,
@@ -108,7 +108,7 @@ def build_profiler_graph(
 
     workflow = StateGraph(ProfilerState)
 
-    workflow.add_node("profile", profile_node)
+    workflow.add_node("profile", profile_node, retry_policy=RetryPolicy())
     workflow.add_node("tools", tool_node)
     workflow.add_node("retry", retry_node)
 

@@ -10,6 +10,7 @@ from langchain_core.messages import SystemMessage
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.prebuilt import ToolNode
+from langgraph.types import RetryPolicy
 
 from app.agents.analyst.prompts import (
     ANALYST_SYSTEM_PROMPT_TEMPLATE,
@@ -89,6 +90,11 @@ def _inject_figures(html: str, narrative: dict) -> str:
     def repl(match: re.Match) -> str:
         idx = int(match.group(1))
         if idx < 0 or idx >= len(charts):
+            logger.warning(
+                "frontend_designer_invalid_figure_token index=%d chart_count=%d",
+                idx,
+                len(charts),
+            )
             return ""
         chart = charts[idx]
         if not isinstance(chart, dict):
@@ -287,7 +293,13 @@ def frontend_designer_node(
     ]
     response = model.invoke(all_messages)
 
-    dashboard_html = _strip_markdown_fences(str(response.content))
+    response_content = str(response.content)
+    logger.debug(
+        "frontend_designer_response output_chars=%d preview=%r",
+        len(response_content),
+        response_content[:1000],
+    )
+    dashboard_html = _strip_markdown_fences(response_content)
     dashboard_html = _inject_figures(dashboard_html, state["narrative"])
     return {"dashboard_html": dashboard_html}
 
@@ -342,13 +354,17 @@ def build_analyst_graph(
 
     workflow = StateGraph(AnalystState)
 
-    workflow.add_node("analyst", analyst_node_fn)
+    workflow.add_node("analyst", analyst_node_fn, retry_policy=RetryPolicy())
     workflow.add_node("analyst_tools", tool_node)
     workflow.add_node("retry", retry_node)
     workflow.add_node("parse", parse_analyst_output_node)
     workflow.add_node("finalize_dashboard", parse_dashboard_output_node)
-    workflow.add_node("storyteller", storyteller_node_fn)
-    workflow.add_node("frontend_designer", frontend_designer_node_fn)
+    workflow.add_node("storyteller", storyteller_node_fn, retry_policy=RetryPolicy())
+    workflow.add_node(
+        "frontend_designer",
+        frontend_designer_node_fn,
+        retry_policy=RetryPolicy(),
+    )
 
     workflow.add_edge(START, "analyst")
     workflow.add_conditional_edges(
