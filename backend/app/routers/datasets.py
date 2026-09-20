@@ -9,12 +9,13 @@ from fastapi import (
     UploadFile,
     status,
 )
-from sqlalchemy.ext.asyncio import AsyncSession
-
+from sqlmodel import select
+from sqlmodel.ext.asyncio.session import AsyncSession
 from app.database import get_db
-from app.dependencies import get_storage_service
+from app.dependencies import get_current_user, get_storage_service
 from app.models.dataset import Dataset
 from app.models.session import Session
+from app.models.user import User
 from app.services.exceptions import InvalidFileError, MalformedCSVError, StorageError
 from app.services.storage import DatasetStorageService
 from app.services.profiling import update_dataset_profile
@@ -28,6 +29,7 @@ async def create_dataset(
     background_tasks: BackgroundTasks,
     request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
     storage_service: Annotated[DatasetStorageService, Depends(get_storage_service)],
 ):
     DatasetStorageService.validate_extension(file.filename)
@@ -36,7 +38,7 @@ async def create_dataset(
     dataset = Dataset(
         original_filename=file.filename,
         storage_path="",
-        user_id=None,
+        user_id=current_user.id,
     )
     db.add(dataset)
     await db.commit()
@@ -80,3 +82,17 @@ async def create_dataset(
         "original_filename": dataset.original_filename,
         "storage_path": dataset.storage_path,
     }
+
+
+@router.get("/")
+async def list_datasets(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    statement = (
+        select(Dataset.original_filename)
+        .where(Dataset.user_id == current_user.id)
+        .order_by(Dataset.created_at.desc())
+    )
+    result = await db.exec(statement)
+    return result.all()
