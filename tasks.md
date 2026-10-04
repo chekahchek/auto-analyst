@@ -131,8 +131,8 @@
 - [x] **6.2** `GET /datasets` — List user's datasets  
   Return list with profile metadata; filter by current user (auth placeholder if no auth yet).
 
-- [ ] **6.3** `POST /datasets/{id}/sessions` — Create session *(manual fallback)*  
-  Create a session only if the dataset does not have one already. The analysis graph is invoked by the first chat message (6.5), not here.
+- [x] **6.3** `POST /datasets/{id}/sessions` — Create session
+  Verify that the dataset belongs to the current user, create an additional session, and return its `session_id`.
 
 - [ ] **6.4** `GET /sessions/{id}` — Get session  
   Query the session and latest artifact, then return session metadata plus the dashboard HTML with Plotly figure JSON materialized inline when a `dashboard_path` is set. The reference-based dashboard remains the persisted source artifact.

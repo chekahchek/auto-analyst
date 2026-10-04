@@ -1,4 +1,5 @@
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import (
     APIRouter,
@@ -82,6 +83,33 @@ async def create_dataset(
         "original_filename": dataset.original_filename,
         "storage_path": dataset.storage_path,
     }
+
+
+@router.post("/{dataset_id}/sessions", status_code=status.HTTP_201_CREATED)
+async def create_session(
+    dataset_id: UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    statement = select(Dataset).where(
+        Dataset.id == dataset_id,
+        Dataset.user_id == current_user.id,
+    )
+    result = await db.exec(statement)
+    dataset = result.one_or_none()
+
+    if dataset is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Dataset not found",
+        )
+
+    session = Session(dataset_id=dataset.id)
+    db.add(session)
+    await db.commit()
+    await db.refresh(session)
+
+    return {"session_id": str(session.id)}
 
 
 @router.get("/")
