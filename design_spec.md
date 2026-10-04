@@ -16,7 +16,7 @@ A self-improving agentic system for data analysis. The user uploads a CSV, an ag
 |---|---|---|
 | `/datasets` | `POST` | Upload CSV. Creates dataset and a session, runs profiler. Returns `dataset_id` and `session_id`. |
 | `/datasets` | `GET` | List user's datasets with profile metadata. |
-| `/datasets/{id}/sessions` | `POST` | Create a session manually if one does not exist. |
+| `/datasets/{id}/sessions` | `POST` | Create a new session for an owned dataset. |
 | `/sessions/{id}` | `GET` | Get session metadata + latest dashboard HTML if available. |
 | `/sessions/{id}/chat` | `POST` | Send a message (first or follow-up). Hydrates state, invokes analysis graph, returns response and dashboard if generated. |
 

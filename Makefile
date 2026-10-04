@@ -22,6 +22,9 @@ eval:
 eval-view:
 	promptfoo view
 
+run:
+	uv --directory backend run uvicorn app.main:app --reload
+
 install-hooks:
 	cp hooks/pre-commit .git/hooks/pre-commit
 	chmod +x .git/hooks/pre-commit
