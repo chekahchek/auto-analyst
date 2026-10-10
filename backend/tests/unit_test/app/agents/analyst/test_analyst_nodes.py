@@ -1,13 +1,13 @@
 from unittest.mock import MagicMock
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
-from langgraph.graph import END
 
 from app.agents.analyst.nodes import (
     analyst_node,
     frontend_designer_node,
     parse_analyst_output_node,
     parse_dashboard_output_node,
+    response_node,
     should_continue,
     storyteller_node,
 )
@@ -34,6 +34,7 @@ def make_state(**overrides) -> AnalystState:
         "critic_score": None,
         "critic_feedback": None,
         "iteration_count": 0,
+        "artifact_action": None,
         "llm_calls": 1,
         "max_llm_calls": 3,
     }
@@ -101,7 +102,10 @@ def test_parse_analyst_output_node():
             )
         ]
     )
-    assert parse_analyst_output_node(state) == {"hypotheses_evidence": args}
+    assert parse_analyst_output_node(state) == {
+        "hypotheses_evidence": args,
+        "artifact_action": "analysis",
+    }
 
 
 def test_parse_analyst_output_node_keeps_figure_pointer(tmp_path):
@@ -147,7 +151,10 @@ def test_parse_dashboard_output_node():
             )
         ]
     )
-    assert parse_dashboard_output_node(state) == {"dashboard_html": "<html></html>"}
+    assert parse_dashboard_output_node(state) == {
+        "dashboard_html": "<html></html>",
+        "artifact_action": "dashboard_edit",
+    }
 
 
 def test_parse_analyst_output_node_missing_raises():
@@ -207,7 +214,7 @@ def test_should_continue_conversational():
     state = make_state(
         messages=[AIMessage(content="Sure, what would you like to know?")]
     )
-    assert should_continue(state) == END
+    assert should_continue(state) == "response"
 
 
 def test_should_continue_finalize_dashboard():
@@ -235,7 +242,59 @@ def test_should_continue_empty_content_routes_to_retry():
 
 def test_should_continue_empty_content_over_budget_ends():
     state = make_state(llm_calls=3, messages=[AIMessage(content="")])
-    assert should_continue(state) == END
+    assert should_continue(state) == "response"
+
+
+def test_response_node_acknowledges_analysis():
+    state = make_state(
+        artifact_action="analysis",
+        hypotheses_evidence={
+            "insights": [
+                "Revenue grew 20%.",
+                "Churn fell 5%.",
+                "Enterprise led growth.",
+                "See the dashboard for outliers.",
+            ]
+        },
+    )
+
+    result = response_node(state)
+
+    assert (
+        result["messages"][0].content == "I generated the dashboard from the analysis."
+    )
+
+
+def test_response_node_acknowledges_dashboard_edit():
+    result = response_node(make_state(artifact_action="dashboard_edit"))
+
+    assert result["messages"][0].content == "The dashboard has been updated."
+
+
+def test_response_node_reuses_direct_answer():
+    state = make_state(messages=[AIMessage(content="Here is the answer.")])
+
+    result = response_node(state)
+
+    assert result == {}
+
+
+def test_response_node_handles_budget_exhaustion():
+    state = make_state(
+        llm_calls=3,
+        messages=[
+            AIMessage(
+                content="",
+                tool_calls=[
+                    {"id": "call_1", "name": "execute_python_script", "args": {}}
+                ],
+            )
+        ],
+    )
+
+    result = response_node(state)
+
+    assert result["messages"][0].content
 
 
 def test_should_continue_over_budget():
@@ -254,7 +313,7 @@ def test_should_continue_over_budget():
             )
         ],
     )
-    assert should_continue(state) == END
+    assert should_continue(state) == "response"
 
 
 def test_storyteller_node(tmp_path, monkeypatch):

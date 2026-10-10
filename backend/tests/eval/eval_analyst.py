@@ -13,12 +13,15 @@ sys.path.insert(0, str(BACKEND_DIR))
 from langchain_core.messages import BaseMessage, HumanMessage
 from langchain_openai import ChatOpenAI
 
-from app.agents.analyst.nodes import build_analyst_graph, storyteller_node
+from app.agents.analyst.nodes import (
+    build_analyst_graph,
+    storyteller_node,
+    with_storyteller_output,
+)
 from app.agents.analyst.states import (
     AnalystState,
     DatasetProfile,
     HypothesesEvidence,
-    StorytellerOutput,
 )
 from app.config import Settings
 
@@ -58,6 +61,7 @@ def get_initial_state(
         critic_score=None,
         critic_feedback=None,
         iteration_count=0,
+        artifact_action=None,
         llm_calls=0,
         max_llm_calls=max_llm_calls,
     )
@@ -153,7 +157,7 @@ async def run_storyteller(variables):
         return {"error": f"input_fixture not found: {fixture_path}"}
 
     hypotheses_evidence = _load_hypotheses_evidence(fixture_path)
-    model = get_eval_model(model_name).with_structured_output(StorytellerOutput)
+    model = with_storyteller_output(get_eval_model(model_name))
 
     state = get_initial_state(
         messages=[],

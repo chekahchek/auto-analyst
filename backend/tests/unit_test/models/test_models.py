@@ -41,6 +41,7 @@ def test_message_instantiation():
     assert message.role == MessageRole.USER
     assert message.content == "Hello"
     assert isinstance(message.id, UUID)
+    assert message.created_at.tzinfo is None
 
 
 def test_artifact_instantiation():

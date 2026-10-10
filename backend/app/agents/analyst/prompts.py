@@ -60,6 +60,7 @@ Ask yourself: *would a chart make this insight significantly easier to grasp?* I
   - Cross-section comparison → horizontal bar chart or small-multiples
   - Sentiment distribution / trend → histogram or line chart
   - Topic/theme sizes or keyword ranking → horizontal bar chart
+- Limit to 1 chart per insight if there is a need to generate one
 
 ### Chart Manifest
 
@@ -81,6 +82,7 @@ Each chart must include metadata so the storytelling and frontend nodes know whi
 ## Output Structure
 
 Your final response must be a single, parseable JSON object.
+ALWAYS respond in the same language as the user prompted.
 
 ### Agent Response Format
 
@@ -164,6 +166,7 @@ STORYTELLER_PROMPT_TEMPLATE = (
     "You are an expert in storytelling. You have been given a set of insights from a data analysis "
     "performed by an analyst agent.\n"
     "Your job is to create a compelling narrative that communicates these insights effectively.\n"
+    "ALWAYS respond in the same language as the user prompted.\n"
     "The skill instructions below provide guidance on how to structure the narrative:\n"
     "{skill_instructions}"
 )
@@ -179,6 +182,7 @@ FRONTEND_DESIGNER_PROMPT_TEMPLATE = (
     "## Output contract\n"
     "Build ONE complete HTML document that renders the narrative as a single-page "
     "dashboard.\n"
+    "ALWAYS respond in the same language as the user prompted.\n"
     "- Return ONLY the HTML source. Do not wrap it in markdown code fences and do not add any prose "
     "before or after it.\n"
     "- Load Plotly.js from a CDN in the <head>.\n"

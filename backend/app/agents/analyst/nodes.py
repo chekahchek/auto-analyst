@@ -5,12 +5,15 @@ from functools import partial
 from html import escape as escape_html
 from pathlib import Path
 
+from langchain_core.exceptions import OutputParserException
 from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import SystemMessage
+from langchain_core.messages import AIMessage, SystemMessage
+from langchain_core.runnables import Runnable
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.prebuilt import ToolNode
 from langgraph.types import RetryPolicy
+from pydantic import TypeAdapter, ValidationError
 
 from app.agents.analyst.prompts import (
     ANALYST_SYSTEM_PROMPT_TEMPLATE,
@@ -38,6 +41,12 @@ from app.agents.common_tools import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+STORYTELLER_OUTPUT_METHODS = {
+    "deepseek-v4-flash": "json_mode",  # json_schema and forced tool calls are rejected
+}
+STORYTELLER_MAX_ATTEMPTS = 3
 
 
 def _format_data_type(data_type) -> str:
@@ -179,7 +188,10 @@ def parse_analyst_output_node(state: AnalystState) -> dict:
         if tool_call.get("name") == SUBMIT_TOOL_NAME:
             args = tool_call.get("args", {}) or {}
             hypotheses_evidence = args.get("hypotheses_evidence", args)
-            return {"hypotheses_evidence": hypotheses_evidence}
+            return {
+                "hypotheses_evidence": hypotheses_evidence,
+                "artifact_action": "analysis",
+            }
     raise ValueError("No valid submit_hypotheses_evidence tool call found")
 
 
@@ -189,8 +201,47 @@ def parse_dashboard_output_node(state: AnalystState) -> dict:
     for tool_call in getattr(last, "tool_calls", []):
         if tool_call.get("name") == UPDATE_DASHBOARD_TOOL_NAME:
             args = tool_call.get("args", {}) or {}
-            return {"dashboard_html": args.get("dashboard_html", args)}
+            return {
+                "dashboard_html": args.get("dashboard_html", args),
+                "artifact_action": "dashboard_edit",
+            }
     raise ValueError("No valid update_dashboard_html tool call found")
+
+
+def response_node(state: AnalystState) -> dict:
+    """Produce the single clean assistant response for every terminal path."""
+    action = state.get("artifact_action")
+    last_message = state["messages"][-1]
+
+    # If analyst generates hypotheses evidence, this will get routed all the way to
+    # dashboard generation in the graph.
+    if action == "analysis":
+        message = "I generated the dashboard from the analysis."
+    # When analyst use the dashboard edit tool, this default message will be returned to the user.
+    elif action == "dashboard_edit":
+        message = "The dashboard has been updated."
+    # When analyst generates a direct response in its final message, return the message directly
+    # or when the analyst has exhausted its llm calls, return a default message to the user.
+    else:
+        content = str(last_message.content or "").strip()
+        has_tool_calls = bool(getattr(last_message, "tool_calls", []))
+        message = (
+            content
+            if content and not has_tool_calls
+            else (
+                "I couldn't complete the analysis within the available processing budget. "
+                "Please try again with a more focused question."
+            )
+        )
+
+    is_existing_clean_response = (
+        isinstance(last_message, AIMessage)
+        and not getattr(last_message, "tool_calls", [])
+        and str(last_message.content or "").strip() == message
+    )
+    return (
+        {} if is_existing_clean_response else {"messages": [AIMessage(content=message)]}
+    )
 
 
 def retry_node(_state: AnalystState) -> dict:
@@ -221,14 +272,48 @@ def should_continue(state: AnalystState) -> str:
 
     # The analyst requested further tools.
     if tool_names:
-        return END if state["llm_calls"] >= state["max_llm_calls"] else "analyst_tools"
+        return (
+            "response"
+            if state["llm_calls"] >= state["max_llm_calls"]
+            else "analyst_tools"
+        )
 
     # No tools: a non-empty reply is a direct conversational answer.
     if (last_message.content or "").strip():
-        return END
+        return "response"
 
     # Empty content: get the model to continue instead of silently ending.
-    return END if state["llm_calls"] >= state["max_llm_calls"] else "retry"
+    return "response" if state["llm_calls"] >= state["max_llm_calls"] else "retry"
+
+
+def with_storyteller_output(model: BaseChatModel) -> Runnable:
+    """Bind StorytellerOutput with the model's supported structured-output method."""
+    method = STORYTELLER_OUTPUT_METHODS.get(getattr(model, "model_name", None))
+    if method is None:
+        return model.with_structured_output(StorytellerOutput)
+    return model.with_structured_output(StorytellerOutput, method=method)
+
+
+def _invoke_storyteller(model: BaseChatModel, messages: list) -> StorytellerOutput:
+    """Invoke the storyteller and validate its output, retrying malformed responses.
+
+    The retry lives here because RetryPolicy does not retry ValueError, and both
+    pydantic's ValidationError and OutputParserException are ValueErrors.
+    """
+    for attempt in range(1, STORYTELLER_MAX_ATTEMPTS + 1):
+        try:
+            return TypeAdapter(StorytellerOutput).validate_python(
+                model.invoke(messages)
+            )
+        except (ValidationError, OutputParserException) as exc:
+            if attempt == STORYTELLER_MAX_ATTEMPTS:
+                raise
+            logger.warning(
+                "storyteller_invalid_output attempt=%d/%d error=%s",
+                attempt,
+                STORYTELLER_MAX_ATTEMPTS,
+                exc,
+            )
 
 
 def storyteller_node(
@@ -252,7 +337,7 @@ def storyteller_node(
         SystemMessage(content=system_prompt),
         SystemMessage(content=hypotheses_evidence),
     ]
-    result = model.invoke(all_messages)
+    output = _invoke_storyteller(model, all_messages)
 
     charts = [
         {
@@ -263,8 +348,8 @@ def storyteller_node(
         for chart in state["hypotheses_evidence"].get("charts", [])
     ]
     narrative = {
-        "central_question": result.get("central_question", ""),
-        "slides": result.get("slides", []),
+        "central_question": output["central_question"],
+        "slides": output["slides"],
         "charts": charts,
     }
     return {"narrative": narrative}
@@ -343,7 +428,7 @@ def build_analyst_graph(
     analyst_node_fn = partial(analyst_node, model=bound_model)
     storyteller_node_fn = partial(
         storyteller_node,
-        model=model.with_structured_output(StorytellerOutput),
+        model=with_storyteller_output(model),
         skills_dir=skills_dir,
     )
     frontend_designer_node_fn = partial(
@@ -358,7 +443,8 @@ def build_analyst_graph(
     workflow.add_node("analyst_tools", tool_node)
     workflow.add_node("retry", retry_node)
     workflow.add_node("parse", parse_analyst_output_node)
-    workflow.add_node("finalize_dashboard", parse_dashboard_output_node)
+    workflow.add_node("parse_dashboard", parse_dashboard_output_node)
+    workflow.add_node("response", response_node)
     workflow.add_node("storyteller", storyteller_node_fn, retry_policy=RetryPolicy())
     workflow.add_node(
         "frontend_designer",
@@ -373,16 +459,17 @@ def build_analyst_graph(
         {
             "analyst_tools": "analyst_tools",
             "parse": "parse",
-            "finalize_dashboard": "finalize_dashboard",
+            "finalize_dashboard": "parse_dashboard",
+            "response": "response",
             "retry": "retry",
-            END: END,
         },
     )
     workflow.add_edge("analyst_tools", "analyst")
     workflow.add_edge("retry", "analyst")
     workflow.add_edge("parse", "storyteller")
-    workflow.add_edge("finalize_dashboard", END)
+    workflow.add_edge("parse_dashboard", "response")
     workflow.add_edge("storyteller", "frontend_designer")
-    workflow.add_edge("frontend_designer", END)
+    workflow.add_edge("frontend_designer", "response")
+    workflow.add_edge("response", END)
 
     return workflow.compile(interrupt_after=interrupt_after)

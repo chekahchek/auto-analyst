@@ -10,7 +10,6 @@ settings = Settings.from_ini()
 
 async_engine = create_async_engine(
     settings.db_url,
-    echo=settings.app_env == "dev",
     future=True,
 )
 

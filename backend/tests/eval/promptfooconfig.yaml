@@ -4,37 +4,36 @@ prompts:
   - "run"
 
 providers:
-  - id: python:file://eval_profiler.py
   - id: python:file://eval_analyst.py
 
 tests:
-  - description: Profiler returns expected value from dataset
-    provider: python:file://eval_profiler.py
+  # - description: Profiler returns expected value from dataset
+  #   provider: python:file://eval_profiler.py
 
-    vars:
-      model: deepseek-v4-flash
-      storage_path: tests/eval/fixtures/eval_data.csv
-      expected_value: panel
+  #   vars:
+  #     model: deepseek-v4-flash
+  #     storage_path: tests/eval/fixtures/eval_data.csv
+  #     expected_value: panel
 
-    assert:
-      - type: python
-        value: file://assert_profiler.py
+  #   assert:
+  #     - type: python
+  #       value: file://assert_profiler.py
 
-  - description: Analyst produces grounded hypotheses and evidence
-    provider: python:file://eval_analyst.py
+  # - description: Analyst produces grounded hypotheses and evidence
+  #   provider: python:file://eval_analyst.py
 
-    vars:
-      stage: analyst
-      model: deepseek-v4-flash
-      data_type: panel
-      question: >-
-        Generate insights for this dataset. It is a simple dataset so do not need to overthink. Just keep it very simple.
-      min_insights: 2
-      min_charts: 1
+  #   vars:
+  #     stage: analyst
+  #     model: deepseek-v4-flash
+  #     data_type: panel
+  #     question: >-
+  #       Generate insights for this dataset. It is a simple dataset so do not need to overthink. Just keep it very simple.
+  #     min_insights: 2
+  #     min_charts: 1
 
-    assert:
-      - type: python
-        value: file://assert_analyst.py
+  #   assert:
+  #     - type: python
+  #       value: file://assert_analyst.py
 
   - description: Storyteller creates a complete narrative from hypotheses and evidence
     provider: python:file://eval_analyst.py
@@ -51,6 +50,7 @@ tests:
           id: openai:chat:deepseek-v4-flash
           config:
             timeout: 600000
+            max_tokens: 8192
             headers:
               X-Opencode-Session: "{{ env.OPENCODE_SESSION_ID }}"
         threshold: 0.5

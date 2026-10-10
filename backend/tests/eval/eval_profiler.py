@@ -4,6 +4,7 @@ import logging
 import sys
 import traceback
 from pathlib import Path
+import uuid
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(BACKEND_DIR))
@@ -39,6 +40,7 @@ async def call_api(prompt, options, context):
             api_key=settings.api_key,
             base_url=settings.api_base_url,
             reasoning_effort=settings.reasoning_effort or None,
+            default_headers={"X-Opencode-Session": str(uuid.uuid4())}
         )
 
     compiled_graph = build_profiler_graph(SKILLS_DIR, model)

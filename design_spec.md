@@ -62,7 +62,7 @@ sequenceDiagram
 
 **Artifacts are separate rows, not messages.** Each analysis-producing turn writes one `artifact` row keyed by `session_id + iteration`, holding `hypotheses_evidence_json`, `narrative_json` (do not include the full plotly graphs, only the pointer referencing it), and `dashboard_path`. On follow-up hydration:
 - The transcript (`message` rows) is injected as `user`/`assistant` messages.
-  - All artifact iterations are injected as a single system block (light metadata only — no `figure`), so the LLM can reference any prior iteration.
+  - The latest artifact iteration is injected as the current artifact context (light metadata only — no `figure`). Older iterations remain persisted for future historical-context support.
 - The latest dashboard HTML is read on demand via a tool from its `dashboard_path`.
 
 **The dashboard is latest-only.** A single `dashboard.html` per session, overwritten on render or edit; `dashboard_path` always points at the current render and is not versioned by `iteration` (which versions the analysis only).
@@ -127,16 +127,17 @@ For follow-up conversation:
 
 1. User sends a follow-up message, e.g. `"Why did churn spike in Q2?"`.
 2. Backend loads from the DB:
-   - Clean transcript (user + final assistant messages of past turns)
-   - `profile`, `dataset_path`
-   - All artifact iterations (`hypotheses_evidence_json` + `narrative_json` per row) injected as a system prompt, light metadata only (insights + chart titles/descriptions — no `figure`)
+    - Clean transcript (user + final assistant messages of past turns)
+    - `profile`, `dataset_path`
+    - The latest artifact iteration (`hypotheses_evidence_json` + `narrative_json`), injected as a system prompt with light metadata only (insights + chart titles/descriptions — no `figure`)
 3. Backend hydrates the `AnalystState` (see Conversation State) and invokes LangGraph.
 4. Analyst node decides whether to answer from the existing context, edit the dashboard, or run new analysis.
 5. **Conversation path** (no new analysis needed):
    - The analyst node appends the answer directly to `messages`.
    - The graph returns the final state.
 6. **Dashboard edit path** (no new analysis, dashboard changes):
-   - `read_dashboard` returns the HTML with references to the figure files; the analyst edits text/structure and submits via `update_dashboard_html`.
+    - `read_dashboard` returns the HTML with references to the figure files; the analyst edits text/structure and submits the complete HTML via `update_dashboard_html`.
+    - Before saving, the backend checks the submitted HTML: every chart placeholder must survive unchanged (unless its index is listed in `removed_chart_indexes`), each placeholder must reference its narrative figure, and an empty or unchanged document is rejected. A rejected edit is never saved; the problems are returned to the analyst as a tool message and it may resubmit while the LLM budget remains.
    - Figure edits use `read_figure(index)` + `execute_python_script` to rewrite `figures/<i>.json` in place — the HTML already references the file, so nothing is re-rendered.
 7. **New analysis path**:
    - The analyst node loads the relevant skill via `read_skill_instructions`.
