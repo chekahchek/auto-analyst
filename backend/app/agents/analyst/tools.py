@@ -65,17 +65,14 @@ def build_read_figure_tool():
 
 def build_update_dashboard_html_tool():
     @tool
-    def update_dashboard_html(
-        dashboard_html: str, removed_chart_indexes: list[int] | None = None
-    ) -> str:
+    def update_dashboard_html(dashboard_html: str) -> str:
         """Submit the complete edited dashboard HTML as the new dashboard artifact.
 
         Call this tool when the user asked you to modify the existing dashboard and you have
         the final, complete HTML document ready. Pass the whole HTML, not a diff.
         Keep every chart placeholder from the current dashboard exactly as it is, e.g.
         <div id="plotly-0" data-plotly-figure="fig_0.json"></div>. Do not add <script> tags
-        or Plotly.newPlot calls. Pass a chart's index in removed_chart_indexes only when the
-        user asked you to remove that chart.
+        or Plotly.newPlot calls.
         """
         return dashboard_html
 

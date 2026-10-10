@@ -75,17 +75,25 @@ def _strip_chart_figures(artifact: dict) -> dict:
 
 
 def _strip_markdown_fences(content: str) -> str:
-    """Remove a surrounding markdown code fence e.g. ```html ... ```."""
+    """Extract the HTML when a model wraps it in prose or markdown fences."""
     content = content.strip()
-    if not content.startswith("```"):
-        return content
 
-    lines = content.splitlines()
-    if lines and lines[0].startswith("```"):
-        lines = lines[1:]
-    if lines and lines[-1].startswith("```"):
-        lines = lines[:-1]
-    return "\n".join(lines).strip()
+    opening_fence = re.search(r"(?m)^[ \t]*```[^\r\n]*\r?\n", content)
+    if opening_fence:
+        content = content[opening_fence.end() :]
+        closing_fence = re.search(r"(?m)^[ \t]*```[ \t]*$", content)
+        if closing_fence:
+            content = content[: closing_fence.start()]
+
+    html_start = re.search(r"(?is)<!doctype\s+html\b|<html\b", content)
+    if html_start:
+        content = content[html_start.start() :]
+
+    html_end = re.search(r"(?is)</html\s*>", content)
+    if html_end:
+        content = content[: html_end.end()]
+
+    return content.strip()
 
 
 def _inject_figures(html: str, narrative: dict) -> str:
@@ -250,8 +258,11 @@ def retry_node(_state: AnalystState) -> dict:
         "messages": [
             SystemMessage(
                 content=(
-                    "You did not produce a usable response. Continue your analysis and "
-                    f"submit your final insights via the `{SUBMIT_TOOL_NAME}` tool."
+                    "You did not produce a usable response. Continue using tools if needed, then "
+                    "answer the user's request directly. If the user asked for a broad analysis "
+                    "or dashboard, submit the final insights via the "
+                    f"`{SUBMIT_TOOL_NAME}` tool; otherwise, do not create hypotheses or a dashboard. "
+                    "Never end with only a description of what you plan to do next."
                 )
             )
         ]

@@ -3,6 +3,7 @@ from unittest.mock import MagicMock
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
 from app.agents.analyst.nodes import (
+    _strip_markdown_fences,
     analyst_node,
     frontend_designer_node,
     parse_analyst_output_node,
@@ -65,6 +66,14 @@ def test_form_analyst_system_prompt():
     assert "dashboard HTML" in dashboard_prompt
     assert "read_dashboard" in dashboard_prompt
     assert "/dashboards/1.html" in dashboard_prompt
+
+
+def test_form_analyst_system_prompt_allows_focused_dataset_answers():
+    prompt = form_analyst_system_prompt(make_state())
+
+    assert "focused question about the dataset" in prompt
+    assert "answer the user directly" in prompt
+    assert "do not form hypotheses" in prompt
 
 
 def test_frontend_prompt_uses_plotly_token_template():
@@ -172,6 +181,8 @@ def test_retry_node():
     result = retry_node(make_state())
     assert isinstance(result["messages"][0], SystemMessage)
     assert SUBMIT_TOOL_NAME in result["messages"][0].content
+    assert "answer the user's request directly" in result["messages"][0].content
+    assert "do not create hypotheses" in result["messages"][0].content
 
 
 def test_should_continue_parse():
@@ -439,3 +450,17 @@ def test_frontend_designer_node_strips_markdown_fences(tmp_path, monkeypatch):
     result = frontend_designer_node(state, model, tmp_path)
 
     assert result["dashboard_html"] == "<!doctype html><html></html>"
+
+
+def test_strip_markdown_fences_removes_precursor_and_trailing_prose():
+    content = (
+        "Here is the complete dashboard:\n"
+        "```html\n"
+        "<!doctype html><html><body>dashboard</body></html>\n"
+        "```\n"
+        "I hope this helps."
+    )
+
+    assert _strip_markdown_fences(content) == (
+        "<!doctype html><html><body>dashboard</body></html>"
+    )

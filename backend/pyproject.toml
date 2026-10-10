@@ -22,7 +22,7 @@ dependencies = [
 ]
 
 [tool.ruff]
-exclude = ["tests/eval"]
+exclude = ["tests/eval", "alembic/versions/"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
