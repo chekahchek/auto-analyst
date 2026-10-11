@@ -14,7 +14,7 @@ test-integration:
 	APP_ENV=test uv --directory backend run pytest tests/integration_test
 
 eval:
-	@RUN_DEEPEVAL=1 uv --directory backend run deepeval test run tests/deepeval
+	@RUN_DEEPEVAL=1 uv --directory backend run deepeval test run tests/deepeval -n 3 --verbose
 
 eval-inspect:
 	uv --directory backend run --with 'deepeval[inspect]' deepeval inspect

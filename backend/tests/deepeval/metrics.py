@@ -6,6 +6,7 @@ violations listed as the reason.
 """
 
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -101,6 +102,64 @@ class AnalystContractMetric(RuleMetric):
         for index, chart in enumerate(charts):
             status = figure_files[index] if index < len(figure_files) else None
             problems.extend(_chart_violations(index, chart, len(insights), status))
+        return problems
+
+
+class DirectAnswerMetric(RuleMetric):
+    """A simple question must be answered in one LLM call without any tool calls."""
+
+    def __init__(self, expected_answer: str) -> None:
+        super().__init__("Direct answer")
+        self.expected_answer = expected_answer
+
+    def violations(self, output: dict[str, Any]) -> list[str]:
+        problems = []
+        tool_calls = output.get("tool_calls", [])
+        if tool_calls:
+            problems.append(f"expected no tool calls, got {tool_calls}")
+        if output.get("llm_calls") != 1:
+            problems.append(f"expected 1 LLM call, got {output.get('llm_calls')}")
+
+        answer = str(output.get("answer") or "")
+        pattern = rf"\b{re.escape(self.expected_answer)}\b"
+        if not re.search(pattern, answer):
+            problems.append(
+                f"expected answer containing '{self.expected_answer}', got {answer!r}"
+            )
+        return problems
+
+
+class FrontendDesignerMetric(RuleMetric):
+    """Checks the designer's HTML: a complete page that loads Plotly and places every chart.
+
+    Expects ``dashboard_html`` in the payload. Each chart placeholder is replaced by
+    the build step with ``data-plotly-figure="fig_<index>.json"``, so a chart is
+    rendered when that reference is present.
+    """
+
+    def __init__(self, chart_count: int) -> None:
+        super().__init__("Frontend designer HTML")
+        self.chart_count = chart_count
+
+    def violations(self, output: dict[str, Any]) -> list[str]:
+        html = output.get("dashboard_html")
+        if not isinstance(html, str) or not html.strip():
+            return ["dashboard_html is empty"]
+
+        problems = []
+        lowered = html.lower()
+        if "<html" not in lowered or "</html>" not in lowered:
+            problems.append("dashboard_html is not a complete HTML document")
+        if not re.search(r"<script[^>]+src=[\"'][^\"']*plotly", html, re.IGNORECASE):
+            problems.append("Plotly.js is not loaded from a script src")
+        if "Plotly.newPlot" in html:
+            problems.append("dashboard_html must not call Plotly.newPlot")
+        if "__PLOTLY_FIGURE_" in html:
+            problems.append("dashboard_html contains an unreplaced chart placeholder")
+
+        for index in range(self.chart_count):
+            if f'data-plotly-figure="fig_{index}.json"' not in html:
+                problems.append(f"chart {index} is not rendered")
         return problems
 
 

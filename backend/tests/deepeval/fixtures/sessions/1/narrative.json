@@ -1,0 +1,169 @@
+{
+  "central_question": "What actually drove the doubling of store sales in Ecuador from 2013 to 2017 — and how much of that growth is real?",
+  "slides": [
+    {
+      "slide_number": 1,
+      "title": "Growth is real — but it was never one tide lifting all boats",
+      "contents": [
+        {
+          "type": "text",
+          "content": "Two supermarkets. Same chain, same country, same three years. Store 36 grew 239%. Store 26 grew 19%. Every one of the 47 stores open on day one grew — but the gap between best and worst is 12x."
+        },
+        {
+          "type": "chart",
+          "chart_index": 1
+        },
+        {
+          "type": "text",
+          "content": "That spread is the first clue that the chain's headline growth number is an average hiding several very different stories underneath it."
+        }
+      ]
+    },
+    {
+      "slide_number": 2,
+      "title": "Chain-wide, sales roughly doubled — and new stores barely explain it",
+      "contents": [
+        {
+          "type": "text",
+          "content": "Average daily sales rose from 386K units in 2013 to 791K in 2016, +106%. Only 17% of that increase came from new stores; the 47 incumbents delivered +88% on their own."
+        },
+        {
+          "type": "text",
+          "content": "It is also a concentrated business: the top 10 of 54 stores generate 40% of volume, and the top 5 of 33 product families generate 79% — GROCERY I alone accounts for 32%. Between-store differences explain 74% of total sales variance versus 26% for change over time, so who the stores are matters more than the trend. If the action sits inside existing stores, what is moving demand week to week?"
+        }
+      ]
+    },
+    {
+      "slide_number": 3,
+      "title": "The calendar does a lot of the work",
+      "contents": [
+        {
+          "type": "text",
+          "content": "Weekends run about 39% above weekdays — Sunday averages 825K units against Thursday's 505K — and December averages 27% above the year-round daily mean."
+        },
+        {
+          "type": "chart",
+          "chart_index": 2
+        },
+        {
+          "type": "text",
+          "content": "With one telling exception: at store 1 weekends are BELOW weekdays (ratio 0.70), the signature of a commuter or office-district location rather than a neighbourhood store. Predictable rhythms like these form the baseline — against which shocks stand out."
+        }
+      ]
+    },
+    {
+      "slide_number": 4,
+      "title": "The single largest demand shock: a 7.8-magnitude earthquake",
+      "contents": [
+        {
+          "type": "text",
+          "content": "The week of 16–22 April 2016 totalled 9.6M units against 5.1M the week before, +87%. Monday 18 April alone hit 1.35M units — 2.18x a normal Monday."
+        },
+        {
+          "type": "chart",
+          "chart_index": 3
+        },
+        {
+          "type": "text",
+          "content": "In the short run this series is moved by stockpiling and events, not by steady demand — a reminder not to read too much into any single month of the topline. But shocks fade. Something more durable was also quietly changing."
+        }
+      ]
+    },
+    {
+      "slide_number": 5,
+      "title": "Promotions scaled from nothing to nearly half of all sales",
+      "contents": [
+        {
+          "type": "text",
+          "content": "Promotion coverage rose from 0% of rows in 2013 to 45% by 2017. Within the same product family, promoted rows sell 1.4–3.1x more (median ~1.6x): PRODUCE 3.1x, BEVERAGES 2.5x, DAIRY 2.0x."
+        },
+        {
+          "type": "chart",
+          "chart_index": 5
+        },
+        {
+          "type": "text",
+          "content": "Because promotional coverage ramped up in step with the sales trend, part of the multi-year 'growth' reflects promotional intensity rather than pure organic demand. This is the complication the +106% headline quietly absorbs."
+        }
+      ]
+    },
+    {
+      "slide_number": 6,
+      "title": "The oil-price story looks compelling — until you detrend it",
+      "contents": [
+        {
+          "type": "text",
+          "content": "Daily sales correlate −0.70 with the daily oil price. It reads like oil is driving demand; it isn't. Oil simply fell from 110 to 26 USD while sales rose. Strip out the shared trend and the correlation collapses to +0.07."
+        },
+        {
+          "type": "chart",
+          "chart_index": 4
+        },
+        {
+          "type": "text",
+          "content": "There is a practical catch too: oil prices exist on only 1,163 of 1,684 days, because commodity markets are closed at weekends and on holidays — so weekend sales have no same-day oil value at all. Any model built on this pairing is largely modelling the calendar."
+        }
+      ]
+    },
+    {
+      "slide_number": 7,
+      "title": "What actually drove the doubling",
+      "contents": [
+        {
+          "type": "text",
+          "content": "Sales roughly doubled between 2013 and 2016, but the growth came overwhelmingly from stores that were already open — incumbents grew +88% while new openings added just 17% of the increase — and it was amplified by promotions rising from 0% to 45% of rows. On top of that sits a demand pattern dominated by the calendar (weekends +39%, December +27%) and punctuated by one-off shocks such as the April 2016 earthquake."
+        },
+        {
+          "type": "text",
+          "content": "The apparent oil-price link is an artifact of two independent trends moving in opposite directions, not a demand signal. The practical implication: judge this business on same-store performance and promotional intensity, treat macro correlations as guilty until proven innocent, and de-duplicate the data before measuring anything — otherwise 3.1% duplicate rows silently inflate the total by 2.1%."
+        }
+      ]
+    },
+    {
+      "slide_number": 8,
+      "title": "Methodology and data caveats",
+      "contents": [
+        {
+          "type": "text",
+          "content": "Daily store-level sales for 54 Ecuadorian stores, 1 Jan 2013 – 15 Aug 2017 (1,684 dates). 3.1% of rows (96,228) are duplicate store-date-family records created by overlapping event labels; de-duplicating on date × store × family cuts the raw total by 2.1%. About 10 non-core families report exactly zero sales chain-wide for whole months in 2014 and early 2015 (85 family-months in total), producing artificial dips in the topline that make those category trends unreliable before mid-2015. Seven stores are pre-opening placeholders sitting at zero until they open, and Christmas Day is absent in all four years. New-store contribution is measured against the 47 stores open from 1 Jan 2013."
+        },
+        {
+          "type": "chart",
+          "chart_index": 0
+        }
+      ]
+    }
+  ],
+  "charts": [
+    {
+      "title": "Monthly Total Sales with Category Data Gaps",
+      "description": "Monthly sales line with red markers showing the 2014-early-2015 months where ~10 categories reported exactly zero, producing artificial dips in the topline.",
+      "figure": "figures/fig_0.json"
+    },
+    {
+      "title": "Same-Store Sales Growth 2013-2016 by Store",
+      "description": "Sorted bar chart of 2013-to-2016 sales growth for the 47 stores open from the start, ranging from +19% to +239%.",
+      "figure": "figures/fig_1.json"
+    },
+    {
+      "title": "Average Daily Sales by Day of Week",
+      "description": "Weekday vs weekend averages showing the ~39% weekend premium, with Sunday as the peak and Thursday the trough.",
+      "figure": "figures/fig_2.json"
+    },
+    {
+      "title": "Sales Around the April 2016 Earthquake",
+      "description": "Daily sales for mid-March to mid-May 2016 against an expected same-weekday baseline, showing the post-earthquake stockpiling surge starting 16 Apr 2016.",
+      "figure": "figures/fig_3.json"
+    },
+    {
+      "title": "Monthly Sales vs Oil Price (Spurious Correlation)",
+      "description": "Dual-axis view of monthly sales and average oil price showing they move in opposite directions - a correlation that vanishes after detrending.",
+      "figure": "figures/fig_4.json"
+    },
+    {
+      "title": "On-Promotion Sales Lift by Product Family",
+      "description": "Horizontal bar chart of promo vs non-promo average sales within each of the top 10 families, showing lifts of 1.4-3.1x.",
+      "figure": "figures/fig_5.json"
+    }
+  ]
+}
