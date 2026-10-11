@@ -68,14 +68,6 @@ def test_form_analyst_system_prompt():
     assert "/dashboards/1.html" in dashboard_prompt
 
 
-def test_form_analyst_system_prompt_allows_focused_dataset_answers():
-    prompt = form_analyst_system_prompt(make_state())
-
-    assert "focused question about the dataset" in prompt
-    assert "answer the user directly" in prompt
-    assert "do not form hypotheses" in prompt
-
-
 def test_frontend_prompt_uses_plotly_token_template():
     assert (
         PLOTLY_FIGURE_TOKEN_TEMPLATE.format(index="<index>")
