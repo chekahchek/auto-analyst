@@ -175,7 +175,7 @@
 
 - [ ] **8.2** Integration tests — full graph end-to-end with frozen CSV fixtures + cached LLM responses. Assert expected HTML sections present.
 
-- [x] **8.3** Eval / regression tests under `tests/eval/`  
+- [x] **8.3** Eval / regression tests under `tests/deepeval/`  
   Frozen CSVs + expected dashboard attributes. Run on PRs.
 
 - [ ] **8.4** Mock LLM client by default; real calls gated by env var (`ENABLE_LIVE_LLM=1`).

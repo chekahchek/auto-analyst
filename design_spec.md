@@ -249,7 +249,7 @@ erDiagram
 |---|---|
 | **Unit** | pytest. Skill file parsing, HTML rendering, graph nodes in isolation (mocked LLM). |
 | **Integration** | Full graph end-to-end with frozen CSV fixtures + cached LLM responses. Assert expected HTML sections. |
-| **Eval / Regression** | `tests/eval/` with frozen CSVs and expected dashboard attributes. Run on PRs. |
+| **Eval / Regression** | `tests/deepeval/` (DeepEval, run via `make eval`) with frozen CSVs and expected dashboard attributes. Run on PRs. |
 | **Cost guard** | Mock LLM client by default. Real calls only in eval, gated by env var. |
 
 
