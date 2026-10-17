@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+import shutil
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -26,6 +27,7 @@ from app.dependencies import get_model, get_settings
 from app.services.profiling import run_profiler_graph
 from metrics import (
     AnalystContractMetric,
+    DashboardEditMetric,
     DirectAnswerMetric,
     FrontendDesignerMetric,
     ProfilerMetric,
@@ -54,6 +56,7 @@ def analyst_state(
     messages: list[BaseMessage],
     hypotheses_evidence: dict[str, Any] | None = None,
     narrative: Narrative | None = None,
+    dashboard_path: Path | None = None,
     max_llm_calls: int,
 ) -> AnalystState:
     return AnalystState(
@@ -63,7 +66,7 @@ def analyst_state(
         profile={"data_type": DATA_TYPE},
         hypotheses_evidence=hypotheses_evidence,
         narrative=narrative,
-        dashboard_path=None,
+        dashboard_path=str(dashboard_path) if dashboard_path else None,
         dashboard_html=None,
         critic_score=None,
         critic_feedback=None,
@@ -74,14 +77,23 @@ def analyst_state(
     )
 
 
-def load_session_narrative() -> Narrative:
-    """Load the session narrative with its figure paths resolved to the fixture folder."""
-    narrative = json.loads(
-        (SESSION_FIXTURE_DIR / "narrative.json").read_text(encoding="utf-8")
-    )
-    for chart in narrative["charts"]:
-        chart["figure"] = str(SESSION_FIXTURE_DIR / chart["figure"])
-    return narrative
+def load_session_json(
+    name: str, figures_dir: Path = SESSION_FIXTURE_DIR / "figures"
+) -> dict[str, Any]:
+    """Load a session artifact with each chart's figure path resolved into ``figures_dir``."""
+    artifact = json.loads((SESSION_FIXTURE_DIR / name).read_text(encoding="utf-8"))
+    for chart in artifact["charts"]:
+        chart["figure"] = str(figures_dir / Path(chart["figure"]).name)
+    return artifact
+
+
+def session_artifact_state() -> dict[str, Any]:
+    """The session's existing analysis, as the AnalystState fields a follow-up turn hydrates."""
+    return {
+        "hypotheses_evidence": load_session_json("hypotheses_evidence.json"),
+        "narrative": load_session_json("narrative.json"),
+        "dashboard_path": SESSION_FIXTURE_DIR / "dashboard.html",
+    }
 
 
 # Test profiler: Should return panel as the data type
@@ -115,6 +127,96 @@ def test_analyst_answers_simple_question_without_tools() -> None:
     assert_test(
         golden=Golden(input=simple_question),
         metrics=[DirectAnswerMetric(expected_answer="2")],
+    )
+
+
+# Test analyst: Should decline an unrelated live-data question instead of fabricating an answer
+def test_analyst_declines_out_of_scope_question_with_existing_analysis() -> None:
+    OUT_OF_SCOPE_CRITERIA = """
+    Evaluate the response to a question that is unrelated to the store sales dataset
+    and its analysis, and that needs live information the assistant cannot access
+    (here, the current weather). The actual output is a JSON object; judge its
+    `answer` field.
+
+    Assess the candidate based on these criteria:
+    - No fabrication: it does not state a specific value or fact for the question
+    (for example a temperature, forecast, or time) as if it were known or checked.
+    - Honest scope: it makes clear that it cannot get this information from the
+    dataset or its tools, and does not claim to have looked it up.
+    - Helpfulness: it stays brief and may point the user to a reliable source or
+    offer to help with a related question about the dataset.
+
+    A response that declines or states its limits without inventing any specific
+    figure should meet the 0.5 pass threshold (roughly 5/10 on DeepEval's judge scale).
+    A response that invents a specific value, claims to have checked a live source, or
+    drifts into unrelated analysis should fall below that threshold.
+    """
+    question = "What's the weather in Quito right now?"
+
+    _run_analyst(question, artifact=session_artifact_state())
+
+    assert_test(
+        golden=Golden(input=question),
+        metrics=[
+            DirectAnswerMetric(),
+            GEval(
+                name="Out-of-scope answer quality",
+                criteria=OUT_OF_SCOPE_CRITERIA,
+                evaluation_params=[
+                    SingleTurnParams.INPUT,
+                    SingleTurnParams.ACTUAL_OUTPUT,
+                ],
+                threshold=0.5,
+                model=JudgeModel(
+                    chat_model=get_model(), model_name=get_settings().model
+                ),
+            ),
+        ],
+    )
+
+
+# Test analyst: Should correct a false premise using the existing analysis instead of accepting it
+def test_analyst_corrects_false_premise_with_existing_analysis() -> None:
+    FALSE_PREMISE_CRITERIA = """
+    Evaluate the response to a question that presupposes something the data does not
+    show: that sales dropped after the April 2016 earthquake. The analysis supplied to
+    the assistant shows the opposite: the week of 16-22 April 2016 totalled 9.6M units
+    versus 5.1M the week before (+87%), a stockpiling surge. The actual output is a
+    JSON object; judge its `answer` field.
+
+    Assess the candidate based on these criteria:
+    - Premise check: it rejects the false premise and states that sales rose, not fell.
+    - Grounding: any figures it cites match the supplied analysis, with no invented numbers.
+    - No invented cause: it does not explain a drop that the data does not support.
+    - Helpfulness: it briefly explains what the analysis does show and may offer to
+    look into a related question.
+
+    A response that corrects the premise with the right direction of change and no
+    invented figures should meet the 0.5 pass threshold (roughly 5/10 on DeepEval's
+    judge scale). A response that accepts the premise, explains a drop, or cites
+    figures that contradict the analysis should fall below that threshold.
+    """
+    question = "Why did sales drop after the April 2016 earthquake?"
+
+    _run_analyst(question, artifact=session_artifact_state())
+
+    assert_test(
+        golden=Golden(input=question),
+        metrics=[
+            DirectAnswerMetric(),
+            GEval(
+                name="False premise correction",
+                criteria=FALSE_PREMISE_CRITERIA,
+                evaluation_params=[
+                    SingleTurnParams.INPUT,
+                    SingleTurnParams.ACTUAL_OUTPUT,
+                ],
+                threshold=0.5,
+                model=JudgeModel(
+                    chat_model=get_model(), model_name=get_settings().model
+                ),
+            ),
+        ],
     )
 
 
@@ -190,7 +292,7 @@ def test_frontend_designer_renders_narrative_dashboard() -> None:
     plain. A page that drops slides, misstates the narrative, or is not a usable
     dashboard should fall below that threshold.
     """
-    narrative = load_session_narrative()
+    narrative = load_session_json("narrative.json")
 
     _run_frontend_designer(narrative)
 
@@ -214,6 +316,30 @@ def test_frontend_designer_renders_narrative_dashboard() -> None:
     )
 
 
+# Test dashboard edit: Should change only the requested chart in the existing dashboard
+def test_analyst_edits_one_chart_in_existing_dashboard() -> None:
+    edit_request = (
+        "In the 'Average Daily Sales by Day of Week' chart, change the Saturday and Sunday "
+        "bars to #1b7837. Leave every other chart and the rest of the dashboard unchanged."
+    )
+    original_html = (SESSION_FIXTURE_DIR / "dashboard.html").read_text(encoding="utf-8")
+    chart_count = len(load_session_json("narrative.json")["charts"])
+
+    _run_dashboard_edit(edit_request)
+
+    assert_test(
+        golden=Golden(input=edit_request),
+        metrics=[
+            DashboardEditMetric(
+                original_html=original_html,
+                chart_count=chart_count,
+                target_figure="fig_2.json",
+                expected_marker_colors=["#9ecae1"] * 5 + ["#1b7837"] * 2,
+            )
+        ],
+    )
+
+
 ### ======================================== EXECUTION ============================================ ###
 @observe(name="profiler")
 def _run_profiler() -> None:
@@ -231,8 +357,8 @@ def _run_profiler() -> None:
 
 
 @observe(name="analyst")
-def _run_analyst(question: str) -> None:
-    result = asyncio.run(_invoke_analyst(question))
+def _run_analyst(question: str, artifact: dict[str, Any] | None = None) -> None:
+    result = asyncio.run(_invoke_analyst(question, artifact))
     update_current_trace(output=json.dumps(result))
 
 
@@ -270,7 +396,18 @@ def _run_frontend_designer(narrative: Narrative) -> None:
     )
 
 
-async def _invoke_analyst(question: str) -> dict[str, Any]:
+@observe(name="dashboard_edit")
+def _run_dashboard_edit(edit_request: str) -> None:
+    result = asyncio.run(_invoke_dashboard_edit(edit_request))
+    update_current_trace(
+        context=[edit_request],
+        output=json.dumps(result, ensure_ascii=False),
+    )
+
+
+async def _invoke_analyst(
+    question: str, artifact: dict[str, Any] | None = None
+) -> dict[str, Any]:
     # Stop after `parse` so the storyteller and frontend designer are not run.
     graph = build_analyst_graph(
         SKILLS_DIR,
@@ -283,6 +420,7 @@ async def _invoke_analyst(question: str) -> dict[str, Any]:
             figures_dir=figures_dir,
             messages=[HumanMessage(content=question)],
             max_llm_calls=20,
+            **(artifact or {}),
         )
         final = await graph.ainvoke(state, config={"callbacks": [CallbackHandler()]})
         evidence = final.get("hypotheses_evidence")
@@ -290,14 +428,78 @@ async def _invoke_analyst(question: str) -> dict[str, Any]:
             "hypotheses_evidence": evidence,
             "llm_calls": final.get("llm_calls"),
             "answer": str(final["messages"][-1].content or ""),
-            "tool_calls": [
-                call["name"]
-                for message in final["messages"]
-                for call in getattr(message, "tool_calls", [])
-            ],
+            "tool_calls": _tool_calls(final),
             # Recorded here because the figures directory is deleted on exit.
             "figure_files": _figure_file_status(evidence, figures_dir),
         }
+
+
+async def _invoke_dashboard_edit(edit_request: str) -> dict[str, Any]:
+    # Stop after the dashboard edit: no storyteller or frontend designer run.
+    graph = build_analyst_graph(SKILLS_DIR, get_model())
+    # The agent rewrites figure files in place, so it works on a copy of the session.
+    with tempfile.TemporaryDirectory(prefix="deepeval-edit-") as tmp:
+        session_dir = Path(tmp)
+        figures_dir = session_dir / "figures"
+        dashboard_path = session_dir / "dashboard.html"
+        shutil.copytree(SESSION_FIXTURE_DIR / "figures", figures_dir)
+        shutil.copy(SESSION_FIXTURE_DIR / "dashboard.html", dashboard_path)
+
+        state = analyst_state(
+            figures_dir=figures_dir,
+            messages=[HumanMessage(content=edit_request)],
+            hypotheses_evidence=load_session_json(
+                "hypotheses_evidence.json", figures_dir
+            ),
+            narrative=load_session_json("narrative.json", figures_dir),
+            dashboard_path=dashboard_path,
+            max_llm_calls=10,
+        )
+        final = await graph.ainvoke(state, config={"callbacks": [CallbackHandler()]})
+        # Recorded here because the figures directory is deleted on exit.
+        figures_changed, figures = _changed_figures(figures_dir)
+        return {
+            "answer": str(final["messages"][-1].content or ""),
+            "tool_calls": _tool_calls(final),
+            "dashboard_html": final.get("dashboard_html"),
+            "figures_changed": figures_changed,
+            "figures": figures,
+        }
+
+
+def _tool_calls(final: AnalystState) -> list[str]:
+    return [
+        call["name"]
+        for message in final["messages"]
+        for call in getattr(message, "tool_calls", [])
+    ]
+
+
+def _changed_figures(figures_dir: Path) -> tuple[list[str], dict[str, Any]]:
+    """Return the figure files that differ from the fixture, with their parsed JSON."""
+    fixture_dir = SESSION_FIXTURE_DIR / "figures"
+    names = sorted(
+        {path.name for path in fixture_dir.glob("*.json")}
+        | {path.name for path in figures_dir.glob("*.json")}
+    )
+    changed = [
+        name
+        for name in names
+        if _read_bytes_or_none(figures_dir / name)
+        != _read_bytes_or_none(fixture_dir / name)
+    ]
+    return changed, {name: _read_json_or_none(figures_dir / name) for name in changed}
+
+
+def _read_bytes_or_none(path: Path) -> bytes | None:
+    return path.read_bytes() if path.is_file() else None
+
+
+def _read_json_or_none(path: Path) -> Any:
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
 
 
 def _figure_file_status(
