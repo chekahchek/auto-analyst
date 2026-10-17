@@ -5,10 +5,10 @@ from fastapi import Depends, Header, HTTPException, status
 
 from app.config import Settings
 from app.database import get_db
+from app.llm import ChatOpenAIWithReasoning
 from app.models.user import User
 from app.services.storage import DatasetStorageService
 from langchain_core.language_models import BaseChatModel
-from langchain_openai import ChatOpenAI
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -59,7 +59,7 @@ async def get_current_user(
 
 def get_model() -> BaseChatModel:
     if _settings.model and _settings.api_key and _settings.api_base_url:
-        return ChatOpenAI(
+        return ChatOpenAIWithReasoning(
             model=_settings.model,
             api_key=_settings.api_key,
             base_url=_settings.api_base_url,

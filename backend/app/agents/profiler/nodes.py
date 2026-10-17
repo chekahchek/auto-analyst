@@ -38,7 +38,7 @@ def profiler_node(
     if state["messages"]:
         last_msg = state["messages"][-1]
         if isinstance(last_msg, ToolMessage):
-            logger.info(
+            logger.debug(
                 "tool_result length=%d preview=%r",
                 len(last_msg.content or ""),
                 (last_msg.content or "")[:1000],

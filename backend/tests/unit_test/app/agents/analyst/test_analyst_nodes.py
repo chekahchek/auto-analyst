@@ -1,13 +1,16 @@
+import json
 from unittest.mock import MagicMock
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
-from langgraph.graph import END
 
 from app.agents.analyst.nodes import (
+    _strip_chart_figures,
+    _strip_markdown_fences,
     analyst_node,
     frontend_designer_node,
     parse_analyst_output_node,
     parse_dashboard_output_node,
+    response_node,
     should_continue,
     storyteller_node,
 )
@@ -34,6 +37,7 @@ def make_state(**overrides) -> AnalystState:
         "critic_score": None,
         "critic_feedback": None,
         "iteration_count": 0,
+        "artifact_action": None,
         "llm_calls": 1,
         "max_llm_calls": 3,
     }
@@ -101,7 +105,10 @@ def test_parse_analyst_output_node():
             )
         ]
     )
-    assert parse_analyst_output_node(state) == {"hypotheses_evidence": args}
+    assert parse_analyst_output_node(state) == {
+        "hypotheses_evidence": args,
+        "artifact_action": "analysis",
+    }
 
 
 def test_parse_analyst_output_node_keeps_figure_pointer(tmp_path):
@@ -147,7 +154,10 @@ def test_parse_dashboard_output_node():
             )
         ]
     )
-    assert parse_dashboard_output_node(state) == {"dashboard_html": "<html></html>"}
+    assert parse_dashboard_output_node(state) == {
+        "dashboard_html": "<html></html>",
+        "artifact_action": "dashboard_edit",
+    }
 
 
 def test_parse_analyst_output_node_missing_raises():
@@ -165,6 +175,8 @@ def test_retry_node():
     result = retry_node(make_state())
     assert isinstance(result["messages"][0], SystemMessage)
     assert SUBMIT_TOOL_NAME in result["messages"][0].content
+    assert "answer the user's request directly" in result["messages"][0].content
+    assert "do not create hypotheses" in result["messages"][0].content
 
 
 def test_should_continue_parse():
@@ -207,7 +219,7 @@ def test_should_continue_conversational():
     state = make_state(
         messages=[AIMessage(content="Sure, what would you like to know?")]
     )
-    assert should_continue(state) == END
+    assert should_continue(state) == "response"
 
 
 def test_should_continue_finalize_dashboard():
@@ -235,7 +247,59 @@ def test_should_continue_empty_content_routes_to_retry():
 
 def test_should_continue_empty_content_over_budget_ends():
     state = make_state(llm_calls=3, messages=[AIMessage(content="")])
-    assert should_continue(state) == END
+    assert should_continue(state) == "response"
+
+
+def test_response_node_acknowledges_analysis():
+    state = make_state(
+        artifact_action="analysis",
+        hypotheses_evidence={
+            "insights": [
+                "Revenue grew 20%.",
+                "Churn fell 5%.",
+                "Enterprise led growth.",
+                "See the dashboard for outliers.",
+            ]
+        },
+    )
+
+    result = response_node(state)
+
+    assert (
+        result["messages"][0].content == "I generated the dashboard from the analysis."
+    )
+
+
+def test_response_node_acknowledges_dashboard_edit():
+    result = response_node(make_state(artifact_action="dashboard_edit"))
+
+    assert result["messages"][0].content == "The dashboard has been updated."
+
+
+def test_response_node_reuses_direct_answer():
+    state = make_state(messages=[AIMessage(content="Here is the answer.")])
+
+    result = response_node(state)
+
+    assert result == {}
+
+
+def test_response_node_handles_budget_exhaustion():
+    state = make_state(
+        llm_calls=3,
+        messages=[
+            AIMessage(
+                content="",
+                tool_calls=[
+                    {"id": "call_1", "name": "execute_python_script", "args": {}}
+                ],
+            )
+        ],
+    )
+
+    result = response_node(state)
+
+    assert result["messages"][0].content
 
 
 def test_should_continue_over_budget():
@@ -254,7 +318,7 @@ def test_should_continue_over_budget():
             )
         ],
     )
-    assert should_continue(state) == END
+    assert should_continue(state) == "response"
 
 
 def test_storyteller_node(tmp_path, monkeypatch):
@@ -361,6 +425,54 @@ def test_frontend_designer_node_injects_figure_reference(tmp_path, monkeypatch):
     assert "/tmp/fig_0.json" not in narrative_msg.content
 
 
+def test_frontend_designer_node_exposes_chart_index_without_figure(
+    tmp_path, monkeypatch
+):
+    read_skill_instructions = MagicMock()
+    read_skill_instructions.invoke.return_value = "frontend design instructions"
+    monkeypatch.setattr(
+        "app.agents.analyst.nodes.build_read_skill_instructions_tool",
+        lambda _skills_dir: read_skill_instructions,
+    )
+
+    model = MagicMock()
+    model.invoke.return_value = AIMessage(content="<html></html>")
+
+    state = make_state(
+        narrative={
+            "central_question": "Why?",
+            "slides": [],
+            "charts": [
+                {"title": "a", "description": "da", "figure": "/tmp/fig_0.json"},
+                {"title": "b", "description": "db", "figure": "/tmp/fig_1.json"},
+            ],
+        }
+    )
+    frontend_designer_node(state, model, tmp_path)
+
+    narrative_msg = model.invoke.call_args[0][0][1]
+    charts = json.loads(narrative_msg.content)["charts"]
+    assert [chart["index"] for chart in charts] == [0, 1]
+    assert [chart["title"] for chart in charts] == ["a", "b"]
+    assert "figure" not in narrative_msg.content
+
+
+def test_strip_chart_figures_keeps_original_index_when_skipping_invalid_chart():
+    artifact = {
+        "charts": [
+            {"title": "a", "figure": "/tmp/fig_0.json"},
+            "not-a-chart",
+            {"title": "c", "figure": "/tmp/fig_2.json"},
+        ]
+    }
+    stripped = _strip_chart_figures(artifact)
+
+    assert stripped["charts"] == [
+        {"index": 0, "title": "a"},
+        {"index": 2, "title": "c"},
+    ]
+
+
 def test_frontend_designer_node_strips_markdown_fences(tmp_path, monkeypatch):
     read_skill_instructions = MagicMock()
     read_skill_instructions.invoke.return_value = "frontend design instructions"
@@ -380,3 +492,17 @@ def test_frontend_designer_node_strips_markdown_fences(tmp_path, monkeypatch):
     result = frontend_designer_node(state, model, tmp_path)
 
     assert result["dashboard_html"] == "<!doctype html><html></html>"
+
+
+def test_strip_markdown_fences_removes_precursor_and_trailing_prose():
+    content = (
+        "Here is the complete dashboard:\n"
+        "```html\n"
+        "<!doctype html><html><body>dashboard</body></html>\n"
+        "```\n"
+        "I hope this helps."
+    )
+
+    assert _strip_markdown_fences(content) == (
+        "<!doctype html><html><body>dashboard</body></html>"
+    )

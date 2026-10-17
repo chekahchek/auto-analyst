@@ -53,8 +53,10 @@ build/
 *.ipynb
 *.lock
 *.csv
+!backend/tests/deepeval/fixtures/*.csv
 secret.ini
 docs/superpowers/*
 data/
 slidedecks/
 .coverage
+.deepeval/

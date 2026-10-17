@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>What actually drove the doubling — Ecuador store sales, 2013–2017</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,300..600;1,6..72,300..600&display=swap" rel="stylesheet" />
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+<script>
+(function () {
+  try {
+    var ok = 'IntersectionObserver' in window &&
+             !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    if (ok) document.documentElement.classList.add('js-motion');
+  } catch (e) {}
+})();
+</script>
+<style>
+  :root{
+    --paper:#EAEDEA;
+    --sheet:#FFFFFF;
+    --ink:#17202A;
+    --ink-soft:#55606B;
+    --rule:#C9CFCA;
+    --ledger:#1F3A93;
+    --ledger-lite:#9DB4E8;
+    --red:#C0322B;
+    --ochre:#7A5C0E;
+    --hl:#EFE27A;
+    --maxw:1140px;
+    --rail:150px;
+    --gap:clamp(20px,3.4vw,44px);
+  }
+
+  *,*::before,*::after{box-sizing:border-box}
+
+  html{-webkit-text-size-adjust:100%}
+
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:"Newsreader",Georgia,"Times New Roman",serif;
+    font-size:clamp(1.02rem,0.5vw + 0.86rem,1.16rem);
+    line-height:1.62;
+    font-weight:400;
+    -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
+  }
+
+  h1,h2,h3{margin:0}
+  p{margin:0}
+  ul{margin:0;padding:0;list-style:none}
+  b{font-weight:600}
+
+  :focus-visible{outline:2px solid var(--ledger);outline-offset:3px;border-radius:1px}
+
+  .skip{
+    position:absolute;left:-9999px;top:0;z-index:60;
+    background:var(--ink);color:#F2F4F1;
+    padding:10px 16px;
+    font-family:"IBM Plex Mono",ui-monospace,monospace;
+    font-size:.78rem;letter-spacing:.08em;
+    text-decoration:none;
+  }
+  .skip:focus{left:12px;top:12px}
+
+  .wrap{
+    max-width:var(--maxw);
+    margin:0 auto;
+    padding:0 clamp(18px,4vw,44px) clamp(48px,7vw,88px);
+  }
+
+  /* ---------- masthead ---------- */
+
+  .masthead{
+    padding:clamp(34px,6vw,72px) 0 clamp(26px,4vw,40px);
+    border-bottom:2px solid var(--ink);
+  }
+
+  .masthead__bar{
+    display:flex;flex-wrap:wrap;justify-content:space-between;
+    gap:6px 26px;
+    padding-bottom:16px;
+    border-bottom:1px solid var(--rule);
+    font-family:"IBM Plex Mono",ui-monospace,monospace;
+    font-size:.68rem;letter-spacing:.15em;text-transform:uppercase;
+    color:var(--ink-soft);
+  }
+
+  .masthead__title{
+    margin:clamp(26px,4vw,44px) 0 0;
+    font-family:"Archivo","Helvetica Neue",Arial,sans-serif;
+    font-weight:800;
+    font-stretch:86%;
+    font-size:clamp(1.95rem,4.6vw,3.75rem);
+    line-height:1.0;
+    letter-spacing:-.03em;
+    max-width:26ch;
+    text-wrap:balance;
+  }
+
+  .masthead__sub{
+    display:block;
+    margin-top:.55em;
+    max-width:32ch;
+    font-family:"Newsreader",Georgia,serif;
+    font-style:italic;
+    font-weight:400;
+    font-stretch:100%;
+    font-size:.5em;
+    line-height:1.25;
+    letter-spacing:-.005em;
+    color:var(--ink-soft);
+  }
+
+  .fields{
+    display:grid;
+    grid-template-columns:clamp(92px,12vw,148px) minmax(0,1fr);
+    column-gap:clamp(14px,2vw,26px);
+    row-gap:11px;
+    align-items:baseline;
+    margin:clamp(28px,4vw,44px) 0 0;
+  }
+  .fields dt{
+    font-family:"IBM Plex Mono",ui-monospace,monospace;
+    font-size:.66rem;letter-spacing:.15em;text-transform:uppercase;
+    color:var(--ink-soft);
+    padding-top:.2em;
+  }
+  .fields dd{
+    margin:0;
+    font-size:clamp(.98rem,0.3vw + .9rem,1.06rem);
+    line-height:1.5;
+  }
+  .fields dd.lead{
+    font-style:italic;
+    font-size:clamp(1.08rem,1vw + .8rem,1.42rem);
+    line-height:1.42;
+    color:var(--ink);
+    border-left:3px solid var(--ledger);
+    padding-left:clamp(12px,1.6vw,20px);
+    margin-top:6px;
+  }
+
+  .legend{
+    margin:clamp(28px,4vw,40px) 0 0;
+    padding-top:clamp(14px,2vw,18px);
+    border-top:1px solid var(--rule);
+  }
+  .legend__label{
+    font-family:"IBM Plex Mono",ui-monospace,monospace;
+    font-size:.66rem;letter-spacing:.15em;text-transform:uppercase;
+    color:var(--ink-soft);
+    margin-bottom:12px;
+  }
+  .legend__list{
+    display:flex;flex-wrap:wrap;
+    gap:10px clamp(16px,3vw,34px);
+  }
+  .legend__list li{
+    display:flex;align-items:center;gap:8px;
+    font-size:.88rem;line-height:1.35;
+    color:var(--ink-soft);
+  }
+  .legend__list b{
+    color:var(--ink);
+    font-family:"IBM Plex Mono",ui-monospace,monospace;
+    font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;
+  }
+  .dot{width:11px;height:11px;border:2px solid currentColor;flex:none}
+  .dot--real{color:var(--ledger)}
+  .dot--base{color:var(--ink-soft)}
+  .dot--shock{color:var(--ochre)}
+  .dot--amp{color:var(--ochre)}
+  .dot--art{color:var(--red)}
+
+  /* ---------- findings ---------- */
+
+  .finding{
+    display:grid;
+    grid-template-columns:var(--rail) minmax(0,1fr);
+    column-gap:var(--gap);
+    padding:clamp(34px,4.6vw,60px) 0;
+    border-top:1px solid var(--rule);
+  }
+  main > .finding:first-child{border-top:none}
+  .verdict + .finding{border-top:none}
+
+  .rail{padding-top:.2em}
+
+  .rail__id{
+    margin:0 0 10px;
+    font-family:"IBM Plex Mono",ui-monospace,monospace;
+    font-size:.7rem;font-weight:500;letter-spacing:.18em;
+    color:var(--ink);
+  }
+  .rail__kicker{
+    margin:0 0 15px;
+    max-width:18ch;
+    font-family:"IBM Plex Mono",ui-monospace,monospace;
+    font-size:.64rem;line-height:1.55;letter-spacing:.09em;
+    text-transform:uppercase;
+    color:var(--ink-soft);
+  }
+  .stampwrap{display:block}
+  .stamp{
+    display:inline-block;
+    font-family:"Archivo",Arial,sans-serif;
+    font-weight:800;font-stretch:84%;
+    font-size:.66rem;letter-spacing:.16em;text-transform:uppercase;
+    line-height:1;
+    padding:5px 8px 4px;
+    border:2px solid currentColor;
+    transform:rotate(-2.5deg);
+    white-space:nowrap;
+  }
+  .stamp--real{color:var(--ledger)}
+  .stamp--baseline{color:var(--ink-soft)}
+  .stamp--shock{color:var(--ochre)}
+  .stamp--amplifier{color:var(--ochre)}
+  .stamp--artifact{color:var(--red)}
+
+  .body{min-width:0}
+
+  .h-finding{
+    font-family:"Archivo",Arial,sans-serif;
+    font-weight:700;font-stretch:90%;
+    font-size:clamp(1.4rem,1.6vw + .95rem,2.05rem);
+    line-height:1.08;
+    letter-spacing:-.022em;
+    max-width:25ch;
+    margin:0 0 clamp(16px,2vw,22px);
+    text-wrap:balance;
+  }
+
+  .prose{
+    max-width:64ch;
+    margin:0 0 clamp(16px,2vw,20px);
+    color:var(--ink);
+  }
+  .body > .prose:last-child{margin-bottom:0}
+
+  .hl{
+    background:linear-gradient(180deg,transparent 8%,var(--hl) 8%,var(--hl) 92%,transparent 92%);
+    color:inherit;
+    padding:0 .06em;
+  }
+  .strike{position:relative;color:var(--ink)}
+  .strike::after{
+    content:"";position:absolute;left:-.08em;right:-.08em;top:54%;height:2px;
+    background:var(--red);transform:rotate(-1.2deg);
+  }
+  .trueval{border-bottom:2px solid var(--ledger);padding-bottom:1px}
+
+  /* ---------- exhibits ---------- */
+
+  .exhibit{
+    margin:clamp(24px,3.2vw,36px) 0;
+    background:var(--sheet);
+    border:1px solid var(--rule);
+    box-shadow:0 1px 0 rgba(23,32,42,.05),0 14px 26px -24px rgba(23,32,42,.55);
+  }
+  .exhibit__cap{
+    display:flex;flex-wrap:wrap;align-items:baseline;
+    gap:4px 12px;
+    padding:12px clamp(12px,2vw,18px) 11px;
+    border-bottom:1px solid var(--rule);
+    font-family:"IBM Plex Mono",ui-monospace,monospace;
+    font-size:.66rem;letter-spacing:.13em;text-transform:uppercase;
+    color:var(--ink-soft);
+  }
+  .exhibit__no{color:var(--ledger);font-weight:600}
+  .exhibit__title{color:var(--ink)}
+  .exhibit__plot{padding:6px 6px 2px;min-height:320px}
+  .exhibit__plot .plotly-graph-div{width:100% !important}
+  .exhibit__plot .plotly text,
+  .exhibit__plot .main-svg text{
+    font-family:"IBM Plex Mono",ui-monospace,monospace !important;
+  }
+  .exhibit__plot .gtitle,
+  .exhibit__plot .g-gtitle{display:none !important}
+
+  /* ---------- verdict ---------- */
+
+  .verdict{
+    margin-top:clamp(30px,4vw,50px);
+    background:var(--ink);
+    color:#E8EBE7;
+    box-shadow:0 0 0 100vmax var(--ink);
+    clip-path:inset(0 -100vmax);
+    padding:clamp(40px,6vw,74px) clamp(20px,3.4vw,44px);
+  }
+  .verdict__eyebrow{
+    font-family:"IBM Plex Mono",ui-monospace,monospace;
+    font-size:.68rem;letter-spacing:.18em;text-transform:uppercase;
+    color:var(--ledger-lite);
+    margin-bottom:clamp(14px,2vw,20px);
+  }
+  .verdict h2{
+    font-family:"Archivo",Arial,sans-serif;
+    font-weight:800;font-stretch:86%;
+    font-size:clamp(1.7rem,3.4vw,2.75rem);
+    line-height:1.03;
+    letter-spacing:-.025em;
+    color:#FFFFFF;
+    max-width:20ch;
+    margin:0 0 clamp(20px,3vw,30px);
+    text-wrap:balance;
+  }
+  .verdict p{
+    max-width:70ch;
+    margin:0 0 18px;
+    color:rgba(232,235,231,.87);
+  }
+  .verdict p:last-child{margin-bottom:0}
+
+  /* ---------- appendix ---------- */
+
+  .finding--appendix .h-finding{
+    font-size:clamp(1.25rem,1.2vw + .9rem,1.6rem);
+    max-width:30ch;
+  }
+  .finding--appendix .prose{
+    max-width:78ch;
+    font-size:clamp(.94rem,0.3vw + .86rem,1rem);
+    line-height:1.66;
+    color:var(--ink-soft);
+  }
+
+  /* ---------- footer ---------- */
+
+  .colophon{
+    margin-top:clamp(40px,6vw,70px);
+    padding-top:20px;
+    border-top:2px solid var(--ink);
+    font-family:"IBM Plex Mono",ui-monospace,monospace;
+    font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;
+    line-height:1.9;
+    color:var(--ink-soft);
+  }
+
+  /* ---------- motion ---------- */
+
+  @keyframes rise{
+    from{opacity:0;transform:translateY(12px)}
+    to{opacity:1;transform:none}
+  }
+
+  .js-motion .masthead__bar{animation:rise .5s cubic-bezier(.22,.85,.3,1) both}
+  .js-motion .masthead__title{animation:rise .62s cubic-bezier(.22,.85,.3,1) .07s both}
+  .js-motion .fields{animation:rise .62s cubic-bezier(.22,.85,.3,1) .16s both}
+  .js-motion .legend{animation:rise .62s cubic-bezier(.22,.85,.3,1) .24s both}
+
+  .js-motion .reveal{
+    opacity:0;
+    transform:translateY(14px);
+    transition:opacity .55s ease,transform .6s cubic-bezier(.22,.85,.3,1);
+  }
+  .js-motion .reveal.is-in{opacity:1;transform:none}
+
+  .js-motion .reveal .rail{
+    opacity:0;
+    transform:translateY(8px);
+    transition:opacity .5s ease .08s,transform .5s cubic-bezier(.22,.85,.3,1) .08s;
+  }
+  .js-motion .reveal.is-in .rail{opacity:1;transform:none}
+
+  .js-motion .reveal .stamp{
+    transform:rotate(-2.5deg) scale(1.12);
+    transition:transform .42s cubic-bezier(.2,.9,.3,1.3) .18s;
+  }
+  .js-motion .reveal.is-in .stamp{transform:rotate(-2.5deg) scale(1)}
+
+  .js-motion .reveal .exhibit{
+    opacity:0;
+    transform:translateY(10px);
+    transition:opacity .6s ease .05s,transform .6s cubic-bezier(.22,.85,.3,1) .05s;
+  }
+  .js-motion .reveal.is-in .exhibit{opacity:1;transform:none}
+
+  @media (prefers-reduced-motion: reduce){
+    *{
+      animation-duration:.001ms !important;
+      animation-iteration-count:1 !important;
+      transition-duration:.001ms !important;
+      scroll-behavior:auto !important;
+    }
+    .js-motion .reveal,
+    .js-motion .reveal .rail,
+    .js-motion .reveal .exhibit{opacity:1 !important;transform:none !important}
+    .js-motion .reveal .stamp{transform:rotate(-2.5deg) !important}
+  }
+
+  /* ---------- small screens ---------- */
+
+  @media (max-width:760px){
+    .finding{grid-template-columns:1fr;row-gap:14px}
+    .rail{
+      display:flex;flex-wrap:wrap;align-items:center;
+      gap:10px 14px;
+      padding:0;
+    }
+    .rail__id{margin:0}
+    .rail__kicker{margin:0;max-width:none}
+    .stampwrap{display:flex}
+    .h-finding{max-width:none}
+    .exhibit__plot{min-height:260px}
+  }
+
+  @media (max-width:620px){
+    .fields{grid-template-columns:1fr;row-gap:2px}
+    .fields dt{padding-top:0}
+    .fields dt:not(:first-child){margin-top:14px}
+    .fields dd.lead{margin-top:10px;padding-left:14px}
+    .masthead__title{max-width:none}
+    .masthead__sub{max-width:none}
+  }
+
+  @media print{
+    body{background:#fff}
+    .js-motion .reveal,
+    .js-motion .reveal .rail,
+    .js-motion .reveal .exhibit,
+    .js-motion .reveal .stamp{opacity:1 !important;transform:none !important}
+    .exhibit{box-shadow:none}
+    .finding{break-inside:avoid}
+  }
+</style>
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to the findings</a>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="masthead__bar">
+      <span>Working paper &middot; EC sales 2013&ndash;2017</span>
+      <span>54 stores &middot; 1,684 dates &middot; 6 exhibits</span>
+    </div>
+
+    <h1 class="masthead__title">
+      What actually drove the doubling of store sales in Ecuador from 2013 to 2017
+      <span class="masthead__sub">and how much of that growth is real?</span>
+    </h1>
+
+    <dl class="fields">
+      <dt>Subject</dt>
+      <dd>Daily store-level sales, 54 supermarkets, Ecuador</dd>
+
+      <dt>Period</dt>
+      <dd>1 Jan 2013 &ndash; 15 Aug 2017</dd>
+
+      <dt>Unit</dt>
+      <dd>Units sold, reported per store, per day, per product family</dd>
+
+      <dt>Headline</dt>
+      <dd>Average daily sales 386K &rarr; 791K units, +106% (2013&ndash;2016)</dd>
+
+      <dt>Attribution</dt>
+      <dd>New stores +17 of those points &middot; the 47 incumbents +88</dd>
+
+      <dt>Bottom line</dt>
+      <dd class="lead">The doubling is real, and it happened inside stores that were already open. Promotions explain why the headline is bigger than the demand; the oil-price link explains nothing at all.</dd>
+    </dl>
+
+    <div class="legend">
+      <p class="legend__label">How to read the stamps</p>
+      <ul class="legend__list">
+        <li><span class="dot dot--real" aria-hidden="true"></span><span><b>Real</b> &mdash; durable demand</span></li>
+        <li><span class="dot dot--base" aria-hidden="true"></span><span><b>Baseline</b> &mdash; a rhythm you can predict</span></li>
+        <li><span class="dot dot--shock" aria-hidden="true"></span><span><b>Shock</b> &mdash; one-off, and it fades</span></li>
+        <li><span class="dot dot--amp" aria-hidden="true"></span><span><b>Amplifier</b> &mdash; inflates the headline</span></li>
+        <li><span class="dot dot--art" aria-hidden="true"></span><span><b>Artifact</b> &mdash; spurious, not a signal</span></li>
+      </ul>
+    </div>
+  </header>
+
+  <main id="main" tabindex="-1">
+
+    <section class="finding reveal" aria-labelledby="f1">
+      <div class="rail">
+        <p class="rail__id">F&ndash;01</p>
+        <p class="rail__kicker">Same-store spread</p>
+        <span class="stampwrap"><span class="stamp stamp--real">Real</span></span>
+      </div>
+      <div class="body">
+        <h2 class="h-finding" id="f1">Growth is real &mdash; but it was never one tide lifting all boats</h2>
+        <p class="prose">Two supermarkets. Same chain, same country, same three years. Store 36 grew 239%. Store 26 grew 19%. Every one of the 47 stores open on day one grew &mdash; but the gap between best and worst is 12x.</p>
+        <figure class="exhibit">
+          <figcaption class="exhibit__cap">
+            <span class="exhibit__no">Exhibit 1</span>
+            <span class="exhibit__title">Same-store sales growth 2013&ndash;2016, by store</span>
+          </figcaption>
+          <div class="exhibit__plot"><div id="plotly-1" data-plotly-figure="fig_1.json"></div></div>
+        </figure>
+        <p class="prose">That spread is the first clue that the chain&rsquo;s headline growth number is an average hiding several very different stories underneath it.</p>
+      </div>
+    </section>
+
+    <section class="finding reveal" aria-labelledby="f2">
+      <div class="rail">
+        <p class="rail__id">F&ndash;02</p>
+        <p class="rail__kicker">Where the volume sits</p>
+        <span class="stampwrap"><span class="stamp stamp--real">Real</span></span>
+      </div>
+      <div class="body">
+        <h2 class="h-finding" id="f2">Chain-wide, sales roughly doubled &mdash; and new stores barely explain it</h2>
+        <p class="prose">Average daily sales rose from 386K units in 2013 to 791K in 2016, +106%. Only 17% of that increase came from new stores; the 47 incumbents delivered +88% on their own.</p>
+        <p class="prose">It is also a concentrated business: the top 10 of 54 stores generate 40% of volume, and the top 5 of 33 product families generate 79% &mdash; GROCERY I alone accounts for 32%. Between-store differences explain 74% of total sales variance versus 26% for change over time, so who the stores are matters more than the trend. If the action sits inside existing stores, what is moving demand week to week?</p>
+      </div>
+    </section>
+
+    <section class="finding reveal" aria-labelledby="f3">
+      <div class="rail">
+        <p class="rail__id">F&ndash;03</p>
+        <p class="rail__kicker">The calendar</p>
+        <span class="stampwrap"><span class="stamp stamp--baseline">Baseline</span></span>
+      </div>
+      <div class="body">
+        <h2 class="h-finding" id="f3">The calendar does a lot of the work</h2>
+        <p class="prose">Weekends run about 39% above weekdays &mdash; Sunday averages 825K units against Thursday&rsquo;s 505K &mdash; and December averages 27% above the year-round daily mean.</p>
+        <figure class="exhibit">
+          <figcaption class="exhibit__cap">
+            <span class="exhibit__no">Exhibit 2</span>
+            <span class="exhibit__title">Average daily sales by day of week</span>
+          </figcaption>
+          <div class="exhibit__plot"><div id="plotly-2" data-plotly-figure="fig_2.json"></div></div>
+        </figure>
+        <p class="prose">With one telling exception: at store 1 weekends are BELOW weekdays (ratio 0.70), the signature of a commuter or office-district location rather than a neighbourhood store. Predictable rhythms like these form the baseline &mdash; against which shocks stand out.</p>
+      </div>
+    </section>
+
+    <section class="finding reveal" aria-labelledby="f4">
+      <div class="rail">
+        <p class="rail__id">F&ndash;04</p>
+        <p class="rail__kicker">A one-off shock</p>
+        <span class="stampwrap"><span class="stamp stamp--shock">Shock</span></span>
+      </div>
+      <div class="body">
+        <h2 class="h-finding" id="f4">The single largest demand shock: a 7.8-magnitude earthquake</h2>
+        <p class="prose">The week of 16&ndash;22 April 2016 totalled 9.6M units against 5.1M the week before, +87%. Monday 18 April alone hit 1.35M units &mdash; 2.18x a normal Monday.</p>
+        <figure class="exhibit">
+          <figcaption class="exhibit__cap">
+            <span class="exhibit__no">Exhibit 3</span>
+            <span class="exhibit__title">Sales around the April 2016 earthquake</span>
+          </figcaption>
+          <div class="exhibit__plot"><div id="plotly-3" data-plotly-figure="fig_3.json"></div></div>
+        </figure>
+        <p class="prose">In the short run this series is moved by stockpiling and events, not by steady demand &mdash; a reminder not to read too much into any single month of the topline. But shocks fade. Something more durable was also quietly changing.</p>
+      </div>
+    </section>
+
+    <section class="finding reveal" aria-labelledby="f5">
+      <div class="rail">
+        <p class="rail__id">F&ndash;05</p>
+        <p class="rail__kicker">Promotional intensity</p>
+        <span class="stampwrap"><span class="stamp stamp--amplifier">Amplifier</span></span>
+      </div>
+      <div class="body">
+        <h2 class="h-finding" id="f5">Promotions scaled from nothing to nearly half of all sales</h2>
+        <p class="prose">Promotion coverage rose from 0% of rows in 2013 to <mark class="hl">45% by 2017</mark>. Within the same product family, promoted rows sell 1.4&ndash;3.1x more (median ~1.6x): PRODUCE 3.1x, BEVERAGES 2.5x, DAIRY 2.0x.</p>
+        <figure class="exhibit">
+          <figcaption class="exhibit__cap">
+            <span class="exhibit__no">Exhibit 4</span>
+            <span class="exhibit__title">On-promotion sales lift by product family</span>
+          </figcaption>
+          <div class="exhibit__plot"><div id="plotly-5" data-plotly-figure="fig_5.json"></div></div>
+        </figure>
+        <p class="prose">Because promotional coverage ramped up in step with the sales trend, part of the multi-year &lsquo;growth&rsquo; reflects promotional intensity rather than pure organic demand. This is the complication the +106% headline quietly absorbs.</p>
+      </div>
+    </section>
+
+    <section class="finding reveal" aria-labelledby="f6">
+      <div class="rail">
+        <p class="rail__id">F&ndash;06</p>
+        <p class="rail__kicker">A macro red herring</p>
+        <span class="stampwrap"><span class="stamp stamp--artifact">Artifact</span></span>
+      </div>
+      <div class="body">
+        <h2 class="h-finding" id="f6">The oil-price story looks compelling &mdash; until you detrend it</h2>
+        <p class="prose">Daily sales correlate <span class="strike">&minus;0.70</span> with the daily oil price. It reads like oil is driving demand; it isn&rsquo;t. Oil simply fell from 110 to 26 USD while sales rose. Strip out the shared trend and the correlation collapses to <span class="trueval">+0.07</span>.</p>
+        <figure class="exhibit">
+          <figcaption class="exhibit__cap">
+            <span class="exhibit__no">Exhibit 5</span>
+            <span class="exhibit__title">Monthly sales vs oil price &mdash; a correlation that vanishes</span>
+          </figcaption>
+          <div class="exhibit__plot"><div id="plotly-4" data-plotly-figure="fig_4.json"></div></div>
+        </figure>
+        <p class="prose">There is a practical catch too: oil prices exist on only 1,163 of 1,684 days, because commodity markets are closed at weekends and on holidays &mdash; so weekend sales have no same-day oil value at all. Any model built on this pairing is largely modelling the calendar.</p>
+      </div>
+    </section>
+
+    <section class="verdict" aria-labelledby="v1">
+      <p class="verdict__eyebrow">Finding of fact</p>
+      <h2 id="v1">What actually drove the doubling</h2>
+      <p>Sales roughly doubled between 2013 and 2016, but the growth came overwhelmingly from stores that were already open &mdash; incumbents grew +88% while new openings added just 17% of the increase &mdash; and it was amplified by promotions rising from 0% to 45% of rows. On top of that sits a demand pattern dominated by the calendar (weekends +39%, December +27%) and punctuated by one-off shocks such as the April 2016 earthquake.</p>
+      <p>The apparent oil-price link is an artifact of two independent trends moving in opposite directions, not a demand signal. The practical implication: judge this business on same-store performance and promotional intensity, treat macro correlations as guilty until proven innocent, and de-duplicate the data before measuring anything &mdash; otherwise 3.1% duplicate rows silently inflate the total by 2.1%.</p>
+    </section>
+
+    <section class="finding finding--appendix reveal" aria-labelledby="f8">
+      <div class="rail">
+        <p class="rail__id">Appendix</p>
+        <p class="rail__kicker">Records, duplicates, gaps</p>
+      </div>
+      <div class="body">
+        <h2 class="h-finding" id="f8">Methodology and data caveats</h2>
+        <p class="prose">Daily store-level sales for 54 Ecuadorian stores, 1 Jan 2013 &ndash; 15 Aug 2017 (1,684 dates). 3.1% of rows (96,228) are duplicate store-date-family records created by overlapping event labels; de-duplicating on date &times; store &times; family cuts the raw total by 2.1%. About 10 non-core families report exactly zero sales chain-wide for whole months in 2014 and early 2015 (85 family-months in total), producing artificial dips in the topline that make those category trends unreliable before mid-2015. Seven stores are pre-opening placeholders sitting at zero until they open, and Christmas Day is absent in all four years. New-store contribution is measured against the 47 stores open from 1 Jan 2013.</p>
+        <figure class="exhibit">
+          <figcaption class="exhibit__cap">
+            <span class="exhibit__no">Exhibit 6</span>
+            <span class="exhibit__title">Monthly total sales, with the 2014&ndash;15 category data gaps marked</span>
+          </figcaption>
+          <div class="exhibit__plot"><div id="plotly-0" data-plotly-figure="fig_0.json"></div></div>
+        </figure>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="colophon">
+    <p>Compiled from daily store &times; day &times; product-family records. All figures are units sold, not currency.</p>
+  </footer>
+
+</div>
+
+<script>
+(function () {
+  var targets = document.querySelectorAll('.reveal');
+  if (!targets.length) return;
+
+  if (!document.documentElement.classList.contains('js-motion')) {
+    Array.prototype.forEach.call(targets, function (t) { t.classList.add('is-in'); });
+    return;
+  }
+
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (entry) {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('is-in');
+        io.unobserve(entry.target);
+      }
+    });
+  }, { rootMargin: '0px 0px -10% 0px', threshold: 0.12 });
+
+  Array.prototype.forEach.call(targets, function (t) { io.observe(t); });
+})();
+</script>
+
+</body>
+</html>

@@ -1,4 +1,4 @@
-.PHONY: setup lint install-hooks migration migrate eval
+.PHONY: setup lint install-hooks migration migrate eval eval-inspect
 
 setup:
 	uv --directory backend sync
@@ -14,13 +14,10 @@ test-integration:
 	APP_ENV=test uv --directory backend run pytest tests/integration_test
 
 eval:
-	@OPENAI_API_KEY="$$(uv --directory backend run python -c 'from app.config import Settings; print(Settings.from_ini().api_key)')" \
-	 OPENAI_API_BASE_URL="$$(uv --directory backend run python -c 'from app.config import Settings; print(Settings.from_ini().api_base_url)')" \
-	 OPENCODE_SESSION_ID="$$(uuidgen)" \
-	 promptfoo eval -c backend/tests/eval
+	@RUN_DEEPEVAL=1 uv --directory backend run deepeval test run tests/deepeval -n 3 --verbose
 
-eval-view:
-	promptfoo view
+eval-inspect:
+	uv --directory backend run --with 'deepeval[inspect]' deepeval inspect
 
 run:
 	uv --directory backend run uvicorn app.main:app --reload

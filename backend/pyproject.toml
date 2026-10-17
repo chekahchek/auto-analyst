@@ -22,17 +22,19 @@ dependencies = [
 ]
 
 [tool.ruff]
-exclude = ["tests/eval"]
+exclude = ["alembic/versions/"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 markers = [
     "integration: requires a running database",
+    "deepeval: calls an LLM judge and may incur cost",
 ]
 
 [dependency-groups]
 dev = [
     "alembic>=1.15.0",
+    "deepeval>=4.2.6,<5",
     "ipykernel>=7.2.0",
     "jupyterlab>=4.5.7",
     "psycopg2-binary>=2.9.10",

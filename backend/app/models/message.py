@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID
@@ -6,7 +6,7 @@ from uuid import UUID
 from sqlalchemy import Index
 from sqlmodel import Field, Relationship, SQLModel
 
-from app.models.base import UUIDBase
+from app.models.base import UUIDBase, _utc_now
 
 if TYPE_CHECKING:
     from app.models.session import Session
@@ -29,6 +29,6 @@ class Message(UUIDBase, SQLModel, table=True):
     sequence: int
     role: MessageRole
     content: str
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=_utc_now)
 
     session: Optional["Session"] = Relationship(back_populates="messages")

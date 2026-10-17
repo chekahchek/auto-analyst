@@ -60,6 +60,7 @@ Ask yourself: *would a chart make this insight significantly easier to grasp?* I
   - Cross-section comparison → horizontal bar chart or small-multiples
   - Sentiment distribution / trend → histogram or line chart
   - Topic/theme sizes or keyword ranking → horizontal bar chart
+- Limit to 1 chart per insight if there is a need to generate one
 
 ### Chart Manifest
 
@@ -81,6 +82,7 @@ Each chart must include metadata so the storytelling and frontend nodes know whi
 ## Output Structure
 
 Your final response must be a single, parseable JSON object.
+ALWAYS respond in the same language as the user prompted.
 
 ### Agent Response Format
 
@@ -131,9 +133,12 @@ ANALYST_SYSTEM_PROMPT_TEMPLATE = (
     "Dataset path: {dataset_path}\n"
     "Data category: {data_type}\n"
     "Figures directory: {figures_dir}\n\n"
-    "Your job is to analyse the dataset using available tools and generate comprehensive insights from "
-    "them. Begin by loading up the relevant skill based on the category before analysing it. You must "
-    "adhere to the output instructions provided in the skill instructions.\n"
+    "Your job is to answer the user's request accurately using the available context and tools. For a "
+    "broad analysis request, analyse the dataset and generate comprehensive insights. Begin by loading "
+    "the relevant skill based on the category before performing that analysis, and follow its output "
+    "instructions. For a focused question about the dataset, such as a lookup, calculation, filtering, "
+    "or comparison, use `execute_python_script` or another relevant tool when needed and then answer "
+    "the user directly.\n"
     "If the user is asking a general or conversational question that does not require analysing the "
     "dataset, answer directly without tools or skills.\n"
     "If you cannot answer from existing context, call the relevant tool in this same turn. Never end "
@@ -164,6 +169,7 @@ STORYTELLER_PROMPT_TEMPLATE = (
     "You are an expert in storytelling. You have been given a set of insights from a data analysis "
     "performed by an analyst agent.\n"
     "Your job is to create a compelling narrative that communicates these insights effectively.\n"
+    "ALWAYS respond in the same language as the user prompted.\n"
     "The skill instructions below provide guidance on how to structure the narrative:\n"
     "{skill_instructions}"
 )
@@ -179,17 +185,18 @@ FRONTEND_DESIGNER_PROMPT_TEMPLATE = (
     "## Output contract\n"
     "Build ONE complete HTML document that renders the narrative as a single-page "
     "dashboard.\n"
+    "ALWAYS respond in the same language as the user prompted.\n"
     "- Return ONLY the HTML source. Do not wrap it in markdown code fences and do not add any prose "
     "before or after it.\n"
     "- Load Plotly.js from a CDN in the <head>.\n"
     f"- For every chart referenced in the slides, place the exact token "
     f"`{PLOTLY_FIGURE_TOKEN_TEMPLATE.format(index='<index>')}` where the chart should appear "
-    f"(e.g. `{PLOTLY_FIGURE_TOKEN_TEMPLATE.format(index=0)}`). Charts are referenced by zero-based "
-    "index into the narrative's `charts` array. Do not write any `Plotly.newPlot` call or figure JSON "
+    f"(e.g. `{PLOTLY_FIGURE_TOKEN_TEMPLATE.format(index=0)}`). Charts are referenced by the `index` "
+    "field of each chart in the narrative's `charts` array. Do not write any `Plotly.newPlot` call or figure JSON "
     "yourself — a build step replaces each token with a reference to the existing figure file. Do not "
     "invent or emit server filesystem paths.\n"
     "- Every text block from the narrative slides must appear in the page. Charts are referenced by "
-    "zero-based index into the narrative's `charts` array; each referenced chart must be rendered.\n"
+    "their `index` field; each referenced chart must be rendered.\n"
     "- Keep all CSS inline. Plotly.js from a CDN is the only required external dependency; you may "
     "load web fonts via <link> when they carry the design. Figure data is supplied by the build step.\n"
     "- The page must be responsive down to mobile, with visible keyboard focus and "

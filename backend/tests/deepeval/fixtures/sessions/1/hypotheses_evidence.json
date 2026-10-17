@@ -1,0 +1,51 @@
+{
+  "insights": [
+    "Data-quality flag: 96,228 rows (3.1% of the file) are duplicate store-date-product_family records, created when a single calendar day carries multiple special-event labels (sales and oil price are identical within each group). Summing the raw sales column overstates the true total by 2.1% (1.097bn vs 1.074bn units), so the data must be de-duplicated on date x store x family before any aggregation or it silently double-counts.",
+    "Data-quality flag: about 10 non-core families (CELEBRATION, LADIESWEAR, PLAYERS AND ELECTRONICS, SCHOOL AND OFFICE SUPPLIES, BABY CARE, HOME CARE, PET SUPPLIES, MAGAZINES, HOME AND KITCHEN I & II) record exactly zero sales across all 54 stores for entire months in 2014 (Feb, Apr, May, Jun, Aug) and early 2015 - 85 family-month gaps in total. These gaps create artificial dips in the topline and make category trends for these lines unreliable before mid-2015.",
+    "Panel structure: the data looks perfectly balanced (all 54 stores appear on every one of the 1,684 dates from 2013-01-01 to 2017-08-15), but 7 stores are pre-opening placeholders sitting at zero until they open - store 53 in May 2014, stores 20 & 29 in early 2015, stores 21/22/42 later in 2015, and store 52 not until 20 Apr 2017. Christmas Day (25 Dec) is absent from all four years, consistent with stores being closed.",
+    "Growth: total sales roughly doubled, +106% from 2013 to 2016 (average daily sales 386K -> 791K units). New stores explain only 17% of the increase; the 47 stores open from day one grew +88% on their own. Yet growth is highly uneven store-by-store - every incumbent store grew, but from just +19% (store 26) to +239% (store 36), a 12x spread.",
+    "Concentration: the top 10 of 54 stores generate 40% of total sales, and the top 5 of 33 product families generate 79% (GROCERY I alone is 32%, BEVERAGES 20%, PRODUCE 11%). Between-store differences account for 74% of total sales variance versus 26% for within-store change over time, so cross-sectional store comparisons matter more than trend for explaining the numbers.",
+    "Seasonality: weekends run about 39% above weekdays (Sunday averages 825K units vs Thursday's 505K), and December averages 27% above the whole-year daily mean. New Year's Day is effectively a closure day (2.5K-16K sales vs ~640K typical) and Christmas is excluded. Store 1 is the exception, with weekends BELOW weekdays (ratio 0.70), pointing to a commuter/office-location store.",
+    "Event shock: the 16 Apr 2016 earthquake (magnitude 7.8) triggered a clear stockpiling surge - the week of 16-22 Apr totalled 9.6M units versus 5.1M the week before (+87%), and Monday 18 Apr hit 1.35M units, 2.18x a normal Monday. This is the single largest exogenous demand shock in the series.",
+    "Caution - the oil-price relationship is a trend artifact, not a signal: daily sales correlate -0.70 with the daily oil price, which looks like oil driving demand, but after removing the common trend the correlation collapses to +0.07. The apparent link is simply that oil fell (110 -> 26 USD) while sales rose. Oil price is also only available on 1,163 of 1,684 days (commodity markets closed on weekends/holidays), so weekend sales have no same-day oil value at all.",
+    "Promotions scaled up and clearly lift sales: promotion coverage rose from 0% of rows in 2013 to 45% by 2017. Within the same product family, promoted rows show 1.4-3.1x higher average sales (median ~1.6x; PRODUCE 3.1x, BEVERAGES 2.5x, DAIRY 2.0x). Because promo coverage ramped up in parallel with the sales trend, part of the multi-year growth reflects promotional intensity rather than pure organic demand."
+  ],
+  "charts": [
+    {
+      "title": "Monthly Total Sales with Category Data Gaps",
+      "insight_index": 1,
+      "description": "Monthly sales line with red markers showing the 2014-early-2015 months where ~10 categories reported exactly zero, producing artificial dips in the topline.",
+      "figure": "figures/fig_0.json"
+    },
+    {
+      "title": "Same-Store Sales Growth 2013-2016 by Store",
+      "insight_index": 3,
+      "description": "Sorted bar chart of 2013-to-2016 sales growth for the 47 stores open from the start, ranging from +19% to +239%.",
+      "figure": "figures/fig_1.json"
+    },
+    {
+      "title": "Average Daily Sales by Day of Week",
+      "insight_index": 5,
+      "description": "Weekday vs weekend averages showing the ~39% weekend premium, with Sunday as the peak and Thursday the trough.",
+      "figure": "figures/fig_2.json"
+    },
+    {
+      "title": "Sales Around the April 2016 Earthquake",
+      "insight_index": 6,
+      "description": "Daily sales for mid-March to mid-May 2016 against an expected same-weekday baseline, showing the post-earthquake stockpiling surge starting 16 Apr 2016.",
+      "figure": "figures/fig_3.json"
+    },
+    {
+      "title": "Monthly Sales vs Oil Price (Spurious Correlation)",
+      "insight_index": 7,
+      "description": "Dual-axis view of monthly sales and average oil price showing they move in opposite directions - a correlation that vanishes after detrending.",
+      "figure": "figures/fig_4.json"
+    },
+    {
+      "title": "On-Promotion Sales Lift by Product Family",
+      "insight_index": 8,
+      "description": "Horizontal bar chart of promo vs non-promo average sales within each of the top 10 families, showing lifts of 1.4-3.1x.",
+      "figure": "figures/fig_5.json"
+    }
+  ]
+}

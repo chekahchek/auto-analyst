@@ -137,8 +137,8 @@
 - [ ] **6.4** `GET /sessions/{id}` — Get session  
   Query the session and latest artifact, then return session metadata plus the dashboard HTML with Plotly figure JSON materialized inline when a `dashboard_path` is set. The reference-based dashboard remains the persisted source artifact.
 
-- [ ] **6.5** `POST /sessions/{id}/chat` — Send message (first or follow-up)  
-  Query the database before graph execution and enrich `AnalystState` with the ordered conversation history, dataset path, profile, figures directory, and all prior artifact metadata. Invoke the analysis graph, then only after successful processing persist the user/final assistant message pair and any new or updated artifact in one transaction. Return the response and, when generated, dashboard HTML with Plotly figure JSON materialized inline.
+- [x] **6.5** `POST /sessions/{id}/chat` — Send message (first or follow-up)
+  Query the database before graph execution and enrich `AnalystState` with the ordered conversation history, dataset path, profile, figures directory, and latest artifact metadata. Invoke the analysis graph, then only after successful processing persist the user/final assistant message pair and any new or updated artifact in one transaction. Return the response and, when generated, dashboard HTML with Plotly figure JSON materialized inline.
 
 - [ ] **6.6** Add global exception handlers (malformed CSV → 400, graph panic → 500 with reference ID).
 
@@ -175,7 +175,7 @@
 
 - [ ] **8.2** Integration tests — full graph end-to-end with frozen CSV fixtures + cached LLM responses. Assert expected HTML sections present.
 
-- [x] **8.3** Eval / regression tests under `tests/eval/`  
+- [x] **8.3** Eval / regression tests under `tests/deepeval/`  
   Frozen CSVs + expected dashboard attributes. Run on PRs.
 
 - [ ] **8.4** Mock LLM client by default; real calls gated by env var (`ENABLE_LIVE_LLM=1`).

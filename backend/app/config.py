@@ -38,6 +38,7 @@ class Settings(BaseModel):
     file_storage_path: Path = Field(default=Path("./data"))
     skills_dir: Path = Field(default=Path("./skills"))
     max_profile_llm_calls: int = Field(default=10)
+    max_analyst_llm_calls: int = Field(default=20)
     log_level: str = Field(default="INFO")
 
     @property

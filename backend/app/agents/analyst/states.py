@@ -56,9 +56,6 @@ class StorytellerOutput(TypedDict):
     slides: list[Slide]
 
 
-# hypotheses_evidence, narrative, dashboard_html are not stored as array even though user can have
-# multiple artifacts. This is because for follow-up convo, we append them to the system prompt
-# and the state here is used for langgraph invocation only.
 class AnalystState(TypedDict):
     dataset_path: str
     figures_dir: str
@@ -71,5 +68,6 @@ class AnalystState(TypedDict):
     critic_score: float | None
     critic_feedback: str | None
     iteration_count: int
+    artifact_action: Literal["analysis", "dashboard_edit"] | None
     llm_calls: int
     max_llm_calls: int
