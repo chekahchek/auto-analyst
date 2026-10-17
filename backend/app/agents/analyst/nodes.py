@@ -174,7 +174,7 @@ def analyst_node(
     """Invoke the analyst LLM with dataset context and category prefixed as system prompt."""
 
     # Analyst generates the chart and saved them in a figures directory.
-    # The chart absolute path are referenced in the hypotheses_evidence 
+    # The chart absolute path are referenced in the hypotheses_evidence
     system_prompt = form_analyst_system_prompt(state)
     all_messages = [SystemMessage(content=system_prompt)] + list(state["messages"])
     response = model.invoke(all_messages)
@@ -340,7 +340,7 @@ def storyteller_node(
     """Generate a structured narrative from the analyst's hypotheses and evidence."""
 
     # Path to the charts from hypotheses_evidence are removed from LLM since storyteller output is
-    # central_qns and slides 
+    # central_qns and slides
     # After narrative is generated, the charts absolute path are added back in
 
     read_skill_instructions = build_read_skill_instructions_tool(skills_dir)
@@ -484,10 +484,10 @@ def build_analyst_graph(
         "analyst",
         should_continue,
         {
-            "analyst_tools": "analyst_tools",              # Output is to use tool calls
-            "parse": "parse",                              # Analyst finished analysis and submitted hypotheses
-            "finalize_dashboard": "parse_dashboard",       # Analyst submitted dashboard edit
-            "response": "response",                        # Analyst produced a direct answer or exhausted LLM calls
+            "analyst_tools": "analyst_tools",  # Output is to use tool calls
+            "parse": "parse",  # Analyst finished analysis and submitted hypotheses
+            "finalize_dashboard": "parse_dashboard",  # Analyst submitted dashboard edit
+            "response": "response",  # Analyst produced a direct answer or exhausted LLM calls
             "retry": "retry",
         },
     )
