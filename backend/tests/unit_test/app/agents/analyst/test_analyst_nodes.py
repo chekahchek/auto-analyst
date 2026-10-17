@@ -1,8 +1,10 @@
+import json
 from unittest.mock import MagicMock
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
 from app.agents.analyst.nodes import (
+    _strip_chart_figures,
     _strip_markdown_fences,
     analyst_node,
     frontend_designer_node,
@@ -421,6 +423,54 @@ def test_frontend_designer_node_injects_figure_reference(tmp_path, monkeypatch):
 
     narrative_msg = model.invoke.call_args[0][0][1]
     assert "/tmp/fig_0.json" not in narrative_msg.content
+
+
+def test_frontend_designer_node_exposes_chart_index_without_figure(
+    tmp_path, monkeypatch
+):
+    read_skill_instructions = MagicMock()
+    read_skill_instructions.invoke.return_value = "frontend design instructions"
+    monkeypatch.setattr(
+        "app.agents.analyst.nodes.build_read_skill_instructions_tool",
+        lambda _skills_dir: read_skill_instructions,
+    )
+
+    model = MagicMock()
+    model.invoke.return_value = AIMessage(content="<html></html>")
+
+    state = make_state(
+        narrative={
+            "central_question": "Why?",
+            "slides": [],
+            "charts": [
+                {"title": "a", "description": "da", "figure": "/tmp/fig_0.json"},
+                {"title": "b", "description": "db", "figure": "/tmp/fig_1.json"},
+            ],
+        }
+    )
+    frontend_designer_node(state, model, tmp_path)
+
+    narrative_msg = model.invoke.call_args[0][0][1]
+    charts = json.loads(narrative_msg.content)["charts"]
+    assert [chart["index"] for chart in charts] == [0, 1]
+    assert [chart["title"] for chart in charts] == ["a", "b"]
+    assert "figure" not in narrative_msg.content
+
+
+def test_strip_chart_figures_keeps_original_index_when_skipping_invalid_chart():
+    artifact = {
+        "charts": [
+            {"title": "a", "figure": "/tmp/fig_0.json"},
+            "not-a-chart",
+            {"title": "c", "figure": "/tmp/fig_2.json"},
+        ]
+    }
+    stripped = _strip_chart_figures(artifact)
+
+    assert stripped["charts"] == [
+        {"index": 0, "title": "a"},
+        {"index": 2, "title": "c"},
+    ]
 
 
 def test_frontend_designer_node_strips_markdown_fences(tmp_path, monkeypatch):

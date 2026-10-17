@@ -58,6 +58,9 @@ def _format_data_type(data_type) -> str:
 def _strip_chart_figures(artifact: dict) -> dict:
     """Return a copy of an artifact with the heavy `figure` payloads removed.
 
+    Each chart gets an explicit zero-based `index` (its position in `charts`), the same
+    index used by `__PLOTLY_FIGURE_<i>__` tokens and `read_figure(index)`.
+
     Used when serializing hypotheses_evidence or narrative into an LLM prompt so the
     model never has to process large Plotly JSON.
     """
@@ -67,8 +70,8 @@ def _strip_chart_figures(artifact: dict) -> dict:
     return {
         **artifact,
         "charts": [
-            {k: v for k, v in chart.items() if k != "figure"}
-            for chart in charts
+            {"index": index, **{k: v for k, v in chart.items() if k != "figure"}}
+            for index, chart in enumerate(charts)
             if isinstance(chart, dict)
         ],
     }
@@ -170,6 +173,8 @@ def analyst_node(
 ) -> dict:
     """Invoke the analyst LLM with dataset context and category prefixed as system prompt."""
 
+    # Analyst generates the chart and saved them in a figures directory.
+    # The chart absolute path are referenced in the hypotheses_evidence 
     system_prompt = form_analyst_system_prompt(state)
     all_messages = [SystemMessage(content=system_prompt)] + list(state["messages"])
     response = model.invoke(all_messages)
@@ -333,6 +338,11 @@ def storyteller_node(
     skills_dir: Path,
 ) -> dict:
     """Generate a structured narrative from the analyst's hypotheses and evidence."""
+
+    # Path to the charts from hypotheses_evidence are removed from LLM since storyteller output is
+    # central_qns and slides 
+    # After narrative is generated, the charts absolute path are added back in
+
     read_skill_instructions = build_read_skill_instructions_tool(skills_dir)
     skill_instructions = read_skill_instructions.invoke(
         {"skill_name": STORYTELLER_SKILL_ID}
@@ -372,6 +382,11 @@ def frontend_designer_node(
     skills_dir: Path,
 ) -> dict:
     """Generate reference-based dashboard HTML from the narrative and its figures."""
+
+    # Similar to storyteller node, charts paths are moved before LLM invocation
+    # but the chart_index in each slide is preserved. THe frontend designer will use
+    # the chart_index to convert it to __PLOTLY_FIGURE_<index>__ token.
+    # Subsequently, this token will be replaced by the charts path after LLM invocation.
     read_skill_instructions = build_read_skill_instructions_tool(skills_dir)
     skill_instructions = read_skill_instructions.invoke(
         {"skill_name": FRONTEND_DESIGNER_SKILL_ID}
@@ -380,7 +395,6 @@ def frontend_designer_node(
         skill_instructions=skill_instructions
     )
 
-    # Remove the heavy plotly figures prior to LLM calls
     narrative = json.dumps(_strip_chart_figures(state["narrative"]), indent=2)
 
     all_messages = [
@@ -464,14 +478,16 @@ def build_analyst_graph(
     )
 
     workflow.add_edge(START, "analyst")
+
+    # Mapping of analyst node output to the next node in the graph
     workflow.add_conditional_edges(
         "analyst",
         should_continue,
         {
-            "analyst_tools": "analyst_tools",
-            "parse": "parse",
-            "finalize_dashboard": "parse_dashboard",
-            "response": "response",
+            "analyst_tools": "analyst_tools",              # Output is to use tool calls
+            "parse": "parse",                              # Analyst finished analysis and submitted hypotheses
+            "finalize_dashboard": "parse_dashboard",       # Analyst submitted dashboard edit
+            "response": "response",                        # Analyst produced a direct answer or exhausted LLM calls
             "retry": "retry",
         },
     )
