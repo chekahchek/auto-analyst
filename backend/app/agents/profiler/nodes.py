@@ -17,7 +17,7 @@ from app.agents.profiler.prompts import (
 from app.agents.profiler.states import ProfilerState
 from app.agents.common_tools import (
     build_execute_python_script_tool,
-    build_read_skill_instructions_tool,
+    load_skill,
 )
 
 logger = logging.getLogger(__name__)
@@ -29,10 +29,7 @@ def profiler_node(
     skills_dir: Path,
 ) -> dict:
     """Invoke the LLM with the profile-data skill prepended as a system prompt."""
-    read_skill_instructions = build_read_skill_instructions_tool(skills_dir)
-    skill_instructions = read_skill_instructions.invoke(
-        {"skill_name": PROFILER_SKILL_ID}
-    )
+    skill_instructions = load_skill(skills_dir, PROFILER_SKILL_ID)
     system_prompt = SYSTEM_PROMPT_TEMPLATE.format(skill_instructions=skill_instructions)
 
     if state["messages"]:

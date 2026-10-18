@@ -1,8 +1,10 @@
 from unittest.mock import MagicMock
 
+import pytest
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langgraph.graph import END
 
+from app.agents.exceptions import SkillNotFoundError
 from app.agents.profiler.nodes import (
     profiler_node,
     should_continue,
@@ -10,18 +12,18 @@ from app.agents.profiler.nodes import (
     build_profiler_graph,
 )
 from app.agents.profiler.states import ProfilerState
-from app.agents.profiler.prompts import RETRY_PROMPT
+from app.agents.profiler.prompts import PROFILER_SKILL_ID, RETRY_PROMPT
 
 
-def test_profiler_node(tmp_path, monkeypatch):
-    skill_instructions = "name: profile-data"
-    read_skill_instructions = MagicMock()
-    read_skill_instructions.invoke.return_value = skill_instructions
-    monkeypatch.setattr(
-        "app.agents.profiler.nodes.build_read_skill_instructions_tool",
-        lambda _skills_dir: read_skill_instructions,
-    )
+@pytest.fixture
+def skills_dir(tmp_path):
+    skill_path = tmp_path / PROFILER_SKILL_ID
+    skill_path.mkdir(parents=True)
+    skill_path.joinpath("SKILL.md").write_text("name: profile-data", encoding="utf-8")
+    return tmp_path
 
+
+def test_profiler_node(skills_dir):
     model_response = AIMessage(content='{"name": "test"}')
     model = MagicMock()
     model.invoke.return_value = model_response
@@ -33,19 +35,30 @@ def test_profiler_node(tmp_path, monkeypatch):
         messages=[HumanMessage(content="Hello")],
     )
 
-    result = profiler_node(state, model, tmp_path)
-
-    read_skill_instructions.invoke.assert_called_once_with(
-        {"skill_name": "core/profile-data"}
-    )
+    result = profiler_node(state, model, skills_dir)
 
     model.invoke.assert_called_once()
     call_args = model.invoke.call_args[0][0]
     assert isinstance(call_args[0], SystemMessage)
-    assert skill_instructions in call_args[0].content
+    assert "name: profile-data" in call_args[0].content
     assert call_args[1] == HumanMessage(content="Hello")
 
     assert result == {"messages": [model_response], "llm_calls": 2}
+
+
+def test_profiler_node_raises_when_skill_missing(tmp_path):
+    model = MagicMock()
+    state: ProfilerState = ProfilerState(
+        storage_path="/tmp/test.csv",
+        llm_calls=0,
+        max_llm_calls=3,
+        messages=[HumanMessage(content="Hello")],
+    )
+
+    with pytest.raises(SkillNotFoundError):
+        profiler_node(state, model, tmp_path)
+
+    model.invoke.assert_not_called()
 
 
 def test_should_continue():
@@ -105,15 +118,7 @@ def test_retry_node():
     assert new_state["messages"][0].content == RETRY_PROMPT
 
 
-async def test_build_profiler_graph(tmp_path, monkeypatch):
-    skill_instructions = "name: profile-data"
-    read_skill_instructions = MagicMock()
-    read_skill_instructions.invoke.return_value = skill_instructions
-    monkeypatch.setattr(
-        "app.agents.profiler.nodes.build_read_skill_instructions_tool",
-        lambda _skills_dir: read_skill_instructions,
-    )
-
+async def test_build_profiler_graph(skills_dir):
     bound_model = MagicMock()
     bound_model.invoke.side_effect = [
         AIMessage(content="not valid json"),
@@ -122,7 +127,7 @@ async def test_build_profiler_graph(tmp_path, monkeypatch):
     model = MagicMock()
     model.bind_tools.return_value = bound_model
 
-    graph = build_profiler_graph(tmp_path, model)
+    graph = build_profiler_graph(skills_dir, model)
 
     initial_state: ProfilerState = ProfilerState(
         storage_path="/tmp/test.csv",

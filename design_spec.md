@@ -204,7 +204,7 @@ erDiagram
         uuid user_id FK
         string original_filename
         string storage_path
-        string data_type
+        json data_type
         timestamp created_at
     }
 

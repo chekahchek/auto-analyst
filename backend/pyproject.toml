@@ -40,6 +40,5 @@ dev = [
     "psycopg2-binary>=2.9.10",
     "pytest-asyncio>=0.25.0",
     "pytest-cov>=7.1.0",
-    "python-dotenv>=1.2.2",
     "ruff>=0.15.16",
 ]

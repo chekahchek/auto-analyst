@@ -1,6 +1,8 @@
 import json
+from pathlib import Path
 from unittest.mock import MagicMock
 
+import pytest
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
 from app.agents.analyst.nodes import (
@@ -19,9 +21,11 @@ from app.agents.analyst.tools import SUBMIT_TOOL_NAME, UPDATE_DASHBOARD_TOOL_NAM
 from app.agents.analyst.prompts import (
     ANALYST_SYSTEM_PROMPT_TEMPLATE,
     FRONTEND_DESIGNER_PROMPT_TEMPLATE,
-    PLOTLY_FIGURE_TOKEN_TEMPLATE,
+    FRONTEND_DESIGNER_SKILL_ID,
+    STORYTELLER_SKILL_ID,
 )
 from app.agents.analyst.nodes import form_analyst_system_prompt
+from app.services.dashboard import PLOTLY_FIGURE_TOKEN_TEMPLATE
 
 
 def make_state(**overrides) -> AnalystState:
@@ -43,6 +47,18 @@ def make_state(**overrides) -> AnalystState:
     }
     defaults.update(overrides)
     return AnalystState(**defaults)
+
+
+@pytest.fixture
+def skills_dir(tmp_path: Path) -> Path:
+    for skill_id, content in (
+        (STORYTELLER_SKILL_ID, "storytelling instructions"),
+        (FRONTEND_DESIGNER_SKILL_ID, "frontend design instructions"),
+    ):
+        skill_path = tmp_path / skill_id
+        skill_path.mkdir(parents=True)
+        skill_path.joinpath("SKILL.md").write_text(content, encoding="utf-8")
+    return tmp_path
 
 
 def test_form_analyst_system_prompt():
@@ -321,43 +337,28 @@ def test_should_continue_over_budget():
     assert should_continue(state) == "response"
 
 
-def test_storyteller_node(tmp_path, monkeypatch):
-    read_skill_instructions = MagicMock()
-    read_skill_instructions.invoke.return_value = "storytelling instructions"
-    monkeypatch.setattr(
-        "app.agents.analyst.nodes.build_read_skill_instructions_tool",
-        lambda _skills_dir: read_skill_instructions,
-    )
-
+def test_storyteller_node(skills_dir):
     model = MagicMock()
     model.invoke.return_value = {"central_question": "Why?", "slides": []}
 
     state = make_state(hypotheses_evidence={"insights": ["a"], "charts": []})
-    result = storyteller_node(state, model, tmp_path)
+    result = storyteller_node(state, model, skills_dir)
 
-    read_skill_instructions.invoke.assert_called_once_with(
-        {"skill_name": "core/storytelling"}
-    )
+    system_prompt = model.invoke.call_args[0][0][0].content
+    assert "storytelling instructions" in system_prompt
     assert result == {
         "narrative": {"central_question": "Why?", "slides": [], "charts": []}
     }
 
 
-def test_storyteller_node_strips_figure_and_keeps_pointer(tmp_path, monkeypatch):
-    read_skill_instructions = MagicMock()
-    read_skill_instructions.invoke.return_value = "storytelling instructions"
-    monkeypatch.setattr(
-        "app.agents.analyst.nodes.build_read_skill_instructions_tool",
-        lambda _skills_dir: read_skill_instructions,
-    )
-
+def test_storyteller_node_strips_figure_and_keeps_pointer(skills_dir):
     model = MagicMock()
     model.invoke.return_value = {"central_question": "Why?", "slides": []}
 
     figure = "/tmp/fig_0.json"
     charts = [{"title": "t", "insight_index": 0, "description": "d", "figure": figure}]
     state = make_state(hypotheses_evidence={"insights": ["a"], "charts": charts})
-    result = storyteller_node(state, model, tmp_path)
+    result = storyteller_node(state, model, skills_dir)
 
     evidence_msg = model.invoke.call_args[0][0][1]
     assert "figure" not in evidence_msg.content
@@ -365,14 +366,7 @@ def test_storyteller_node_strips_figure_and_keeps_pointer(tmp_path, monkeypatch)
     assert "insight_index" not in result["narrative"]["charts"][0]
 
 
-def test_frontend_designer_node(tmp_path, monkeypatch):
-    read_skill_instructions = MagicMock()
-    read_skill_instructions.invoke.return_value = "frontend design instructions"
-    monkeypatch.setattr(
-        "app.agents.analyst.nodes.build_read_skill_instructions_tool",
-        lambda _skills_dir: read_skill_instructions,
-    )
-
+def test_frontend_designer_node(skills_dir):
     html = "<html><body>dashboard</body></html>"
     model = MagicMock()
     model.invoke.return_value = AIMessage(content=html)
@@ -380,22 +374,14 @@ def test_frontend_designer_node(tmp_path, monkeypatch):
     state = make_state(
         narrative={"central_question": "Why?", "slides": [], "charts": []}
     )
-    result = frontend_designer_node(state, model, tmp_path)
+    result = frontend_designer_node(state, model, skills_dir)
 
-    read_skill_instructions.invoke.assert_called_once_with(
-        {"skill_name": "core/frontend-design"}
-    )
+    system_prompt = model.invoke.call_args[0][0][0].content
+    assert "frontend design instructions" in system_prompt
     assert result == {"dashboard_html": html}
 
 
-def test_frontend_designer_node_injects_figure_reference(tmp_path, monkeypatch):
-    read_skill_instructions = MagicMock()
-    read_skill_instructions.invoke.return_value = "frontend design instructions"
-    monkeypatch.setattr(
-        "app.agents.analyst.nodes.build_read_skill_instructions_tool",
-        lambda _skills_dir: read_skill_instructions,
-    )
-
+def test_frontend_designer_node_injects_figure_reference(skills_dir):
     model = MagicMock()
     model.invoke.return_value = AIMessage(
         content=(
@@ -411,7 +397,7 @@ def test_frontend_designer_node_injects_figure_reference(tmp_path, monkeypatch):
             "charts": [{"title": "t", "description": "d", "figure": figure}],
         }
     )
-    result = frontend_designer_node(state, model, tmp_path)
+    result = frontend_designer_node(state, model, skills_dir)
 
     html = result["dashboard_html"]
     assert "__PLOTLY_FIGURE_0__" not in html
@@ -425,16 +411,7 @@ def test_frontend_designer_node_injects_figure_reference(tmp_path, monkeypatch):
     assert "/tmp/fig_0.json" not in narrative_msg.content
 
 
-def test_frontend_designer_node_exposes_chart_index_without_figure(
-    tmp_path, monkeypatch
-):
-    read_skill_instructions = MagicMock()
-    read_skill_instructions.invoke.return_value = "frontend design instructions"
-    monkeypatch.setattr(
-        "app.agents.analyst.nodes.build_read_skill_instructions_tool",
-        lambda _skills_dir: read_skill_instructions,
-    )
-
+def test_frontend_designer_node_exposes_chart_index_without_figure(skills_dir):
     model = MagicMock()
     model.invoke.return_value = AIMessage(content="<html></html>")
 
@@ -448,7 +425,7 @@ def test_frontend_designer_node_exposes_chart_index_without_figure(
             ],
         }
     )
-    frontend_designer_node(state, model, tmp_path)
+    frontend_designer_node(state, model, skills_dir)
 
     narrative_msg = model.invoke.call_args[0][0][1]
     charts = json.loads(narrative_msg.content)["charts"]
@@ -473,14 +450,7 @@ def test_strip_chart_figures_keeps_original_index_when_skipping_invalid_chart():
     ]
 
 
-def test_frontend_designer_node_strips_markdown_fences(tmp_path, monkeypatch):
-    read_skill_instructions = MagicMock()
-    read_skill_instructions.invoke.return_value = "frontend design instructions"
-    monkeypatch.setattr(
-        "app.agents.analyst.nodes.build_read_skill_instructions_tool",
-        lambda _skills_dir: read_skill_instructions,
-    )
-
+def test_frontend_designer_node_strips_markdown_fences(skills_dir):
     model = MagicMock()
     model.invoke.return_value = AIMessage(
         content="```html\n<!doctype html><html></html>\n```"
@@ -489,7 +459,7 @@ def test_frontend_designer_node_strips_markdown_fences(tmp_path, monkeypatch):
     state = make_state(
         narrative={"central_question": "Why?", "slides": [], "charts": []}
     )
-    result = frontend_designer_node(state, model, tmp_path)
+    result = frontend_designer_node(state, model, skills_dir)
 
     assert result["dashboard_html"] == "<!doctype html><html></html>"
 

@@ -4,6 +4,8 @@ from typing import Annotated
 from langchain_core.tools import tool
 from langgraph.prebuilt import InjectedState
 
+from app.services.dashboard import figure_filename
+
 SUBMIT_TOOL_NAME = "submit_hypotheses_evidence"
 UPDATE_DASHBOARD_TOOL_NAME = "update_dashboard_html"
 
@@ -52,7 +54,7 @@ def build_read_figure_tool():
         the narrative's `charts` array.
         """
         figures_dir = Path(state["figures_dir"])
-        figure_path = Path(figures_dir) / f"fig_{index}.json"
+        figure_path = Path(figures_dir) / figure_filename(index)
         if not figure_path.is_file():
             return (
                 f"No figure file found at '{figure_path}'. "
