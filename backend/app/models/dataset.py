@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING, List, Optional
 from uuid import UUID
 
+from sqlalchemy import JSON, Column
 from sqlmodel import Field, Relationship, SQLModel
 
 from app.models.base import CreatedAtBase, UUIDBase
@@ -20,7 +21,9 @@ class Dataset(UUIDBase, CreatedAtBase, SQLModel, table=True):
     )
     original_filename: str
     storage_path: str
-    data_type: Optional[str] = None
+    data_type: Optional[str | list[str]] = Field(
+        default=None, sa_column=Column(JSON(none_as_null=True))
+    )
 
     user: Optional["User"] = Relationship(back_populates="datasets")
     sessions: List["Session"] = Relationship(back_populates="dataset")

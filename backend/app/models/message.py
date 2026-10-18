@@ -22,7 +22,7 @@ class MessageRole(str, Enum):
 class Message(UUIDBase, SQLModel, table=True):
     __tablename__ = "message"
     __table_args__ = (
-        Index("ix_message_session_id_sequence", "session_id", "sequence"),
+        Index("ix_message_session_id_sequence", "session_id", "sequence", unique=True),
     )
 
     session_id: UUID = Field(foreign_key="session.id")

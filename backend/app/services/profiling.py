@@ -50,10 +50,7 @@ async def update_dataset_profile(
                 logger.warning("Dataset %s not found for profiling update", dataset_id)
                 return
 
-            data_type = profile.get("data_type")
-            dataset.data_type = (
-                json.dumps(data_type) if isinstance(data_type, list) else data_type
-            )
+            dataset.data_type = profile.get("data_type")
             await session.commit()
         except Exception:
             logger.exception("Failed to update dataset %s profile", dataset_id)

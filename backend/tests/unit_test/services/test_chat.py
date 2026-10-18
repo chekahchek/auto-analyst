@@ -37,7 +37,7 @@ async def test_run_chat_turn_uses_database_history_and_persists_direct_answer(
         user_id=user.id,
         original_filename="data.csv",
         storage_path=str(tmp_path / "datasets" / "data.csv"),
-        data_type='["panel"]',
+        data_type=["panel"],
     )
     session = Session(dataset_id=dataset.id)
     previous_user = Message(
@@ -123,6 +123,46 @@ async def test_run_chat_turn_uses_database_history_and_persists_direct_answer(
     ]
     db.rollback.assert_awaited_once()
     db.commit.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_run_chat_turn_defaults_unset_data_type_to_unknown(tmp_path: Path):
+    user = User(email="owner@example.com")
+    dataset = Dataset(
+        user_id=user.id,
+        original_filename="data.csv",
+        storage_path=str(tmp_path / "datasets" / "data.csv"),
+    )
+    session = Session(dataset_id=dataset.id)
+    captured_state = None
+
+    async def invoke(state):
+        nonlocal captured_state
+        captured_state = state
+        return {
+            "messages": [AIMessage(content="Current answer")],
+            "artifact_action": None,
+            "dashboard_html": None,
+        }
+
+    db = _database(
+        _result(one_or_none=(session, dataset)),
+        _result(rows=[]),
+        _result(first=None),
+        _result(first=None),
+    )
+
+    await run_chat_turn(
+        db,
+        session_id=session.id,
+        user_id=user.id,
+        question="Generate insights",
+        graph=SimpleNamespace(ainvoke=invoke),
+        max_analyst_llm_calls=20,
+        storage_root=tmp_path,
+    )
+
+    assert captured_state["profile"] == {"data_type": "unknown"}
 
 
 @pytest.mark.asyncio

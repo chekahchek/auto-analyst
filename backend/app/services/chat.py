@@ -1,5 +1,4 @@
 import asyncio
-import json
 import logging
 from dataclasses import dataclass
 from pathlib import Path
@@ -26,19 +25,6 @@ logger = logging.getLogger(__name__)
 class ChatTurnResult:
     final_message: str
     dashboard_html: str | None
-
-
-def _decode_data_type(raw_data_type: str | list[str] | None) -> str | list[str]:
-    if isinstance(raw_data_type, list):
-        return raw_data_type
-    if not raw_data_type:
-        return "unknown"
-    try:
-        decoded = json.loads(raw_data_type)
-    except (json.JSONDecodeError, TypeError):
-        return raw_data_type
-
-    return decoded if isinstance(decoded, (str, list)) else raw_data_type
 
 
 def _resolve_dataset_path(storage_root: Path, raw_path: str) -> Path:
@@ -216,7 +202,7 @@ async def run_chat_turn(
                 *[_to_graph_message(message) for message in stored_messages],
                 HumanMessage(content=question),
             ],
-            profile={"data_type": _decode_data_type(dataset.data_type)},
+            profile={"data_type": dataset.data_type or "unknown"},
             hypotheses_evidence=(
                 latest_artifact.hypotheses_evidence_json if latest_artifact else None
             ),
