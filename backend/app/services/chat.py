@@ -17,6 +17,7 @@ from app.models.message import Message, MessageRole
 from app.models.session import Session
 from app.services.dashboard import materialize_dashboard_html, save_dashboard_html
 from app.services.exceptions import AnalysisFailedError, SessionNotFoundError
+from app.services.sessions import load_latest_artifact, load_messages
 
 logger = logging.getLogger(__name__)
 
@@ -59,20 +60,6 @@ def _extract_final_message(final_state: dict) -> str:
         raise RuntimeError("Analyst graph returned an empty assistant message")
 
     return content
-
-
-async def _load_latest_artifact(
-    db: AsyncSession,
-    session_id: UUID,
-) -> Artifact | None:
-    statement = (
-        select(Artifact)
-        .where(Artifact.session_id == session_id)
-        .order_by(Artifact.iteration.desc())
-        .limit(1)
-    )
-    result = await db.exec(statement)
-    return result.first()
 
 
 async def _load_owned_dataset(
@@ -175,16 +162,10 @@ async def run_chat_turn(
 
     try:
         # Obtain the previous message from DB to enrich the graph
-        message_statement = (
-            select(Message)
-            .where(Message.session_id == session_id)
-            .order_by(Message.sequence)
-        )
-        message_result = await db.exec(message_statement)
-        stored_messages = message_result.all()
+        stored_messages = await load_messages(db, session_id)
 
         # Obtain the latest artifact for the session to enrich the graph
-        latest_artifact = await _load_latest_artifact(db, session_id)
+        latest_artifact = await load_latest_artifact(db, session_id)
         latest_artifact_id = latest_artifact.id if latest_artifact else None
         latest_artifact_iteration = latest_artifact.iteration if latest_artifact else 0
 

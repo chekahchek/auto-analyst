@@ -17,7 +17,9 @@ A self-improving agentic system for data analysis. The user uploads a CSV, an ag
 | `/datasets` | `POST` | Upload CSV. Creates dataset and a session, runs profiler. Returns `dataset_id` and `session_id`. |
 | `/datasets` | `GET` | List user's datasets with profile metadata. |
 | `/datasets/{id}/sessions` | `POST` | Create a new session for an owned dataset. |
-| `/sessions/{id}` | `GET` | Get session metadata + latest dashboard HTML if available. |
+| `/sessions` | `GET` | List the user's sessions for the conversation sidebar, most recent activity first |
+| `/sessions/{id}` | `GET` | Get session metadata, full message history (ordered by `sequence`). Dashboard HTML is retrieved from a different endpoint
+| `/sessions/{id}/dashboard` | `GET` | Get the latest dashboard HTML with Plotly figures materialized inline. `404` if none. |
 | `/sessions/{id}/chat` | `POST` | Send a message (first or follow-up). Hydrates state, invokes analysis graph, returns response and dashboard if generated. |
 
 
@@ -328,3 +330,5 @@ flowchart LR
 
 ## Open questions
 - Plotly figures are persisted as files under a session-scoped `figures/` dir and referenced by the dashboard HTML, but stay out of the LLM — see *Plotly Figures*. Dataframes and generated code remain transient working memory; a follow-up like "show me the raw data behind chart 3" needs those persisted, which is still open for post-MVP.
+- Sidebar listing: should the sidebar use the proposed `GET /sessions`, or should `GET /datasets` return dataset IDs, profile metadata, and session IDs as its row already specifies? Today `GET /datasets` returns filenames only, so the client cannot reach a session.
+- Dashboard delivery: should `POST /sessions/{id}/chat` keep returning `dashboard_html` on every turn? Dropping it keeps chat responses light, but the client then needs a second request to show an updated dashboard.

@@ -147,3 +147,18 @@ def materialize_dashboard_html(dashboard_html: str, figures_dir: Path) -> str:
         return f"{div}{script}"
 
     return _REFERENCE_RE.sub(replace_reference, dashboard_html)
+
+
+async def load_dashboard_for_delivery(dashboard_path: Path, figures_dir: Path) -> str:
+    """Read a persisted dashboard and materialize it for delivery to the browser.
+
+    The stored file keeps its reference-based form; only the returned copy is inlined.
+    """
+    return await asyncio.to_thread(
+        _read_dashboard_for_delivery, dashboard_path, figures_dir
+    )
+
+
+def _read_dashboard_for_delivery(dashboard_path: Path, figures_dir: Path) -> str:
+    dashboard_html = dashboard_path.read_text(encoding="utf-8")
+    return materialize_dashboard_html(dashboard_html, figures_dir)

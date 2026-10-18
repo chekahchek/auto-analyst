@@ -9,6 +9,7 @@ from app.services.dashboard import (
     PLOTLY_FIGURE_TOKEN_TEMPLATE,
     figure_filename,
     inject_figure_references,
+    load_dashboard_for_delivery,
     materialize_dashboard_html,
     render_figure_reference,
     save_dashboard_html,
@@ -106,3 +107,22 @@ def test_llm_placeholder_example_is_a_valid_reference(tmp_path: Path):
     assert example in build_update_dashboard_html_tool().description
     assert render_figure_reference(0, figure_filename(0)) == example
     assert 'Plotly.newPlot("plotly-0"' in materialize_dashboard_html(example, tmp_path)
+
+
+async def test_load_dashboard_for_delivery_inlines_figures_and_keeps_stored_file(
+    tmp_path: Path,
+):
+    figures_dir = tmp_path / "figures"
+    figures_dir.mkdir()
+    (figures_dir / "fig_0.json").write_text(
+        '{"data":[{"type":"bar"}],"layout":{}}', encoding="utf-8"
+    )
+    stored_html = '<div id="plotly-0" data-plotly-figure="fig_0.json"></div>'
+    dashboard_path = tmp_path / "dashboard.html"
+    dashboard_path.write_text(stored_html, encoding="utf-8")
+
+    delivered = await load_dashboard_for_delivery(dashboard_path, figures_dir)
+
+    assert 'Plotly.newPlot("plotly-0"' in delivered
+    assert "data-plotly-figure" not in delivered
+    assert dashboard_path.read_text(encoding="utf-8") == stored_html
