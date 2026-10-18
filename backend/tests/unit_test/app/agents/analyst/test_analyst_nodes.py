@@ -22,10 +22,10 @@ from app.agents.analyst.prompts import (
     ANALYST_SYSTEM_PROMPT_TEMPLATE,
     FRONTEND_DESIGNER_PROMPT_TEMPLATE,
     FRONTEND_DESIGNER_SKILL_ID,
-    PLOTLY_FIGURE_TOKEN_TEMPLATE,
     STORYTELLER_SKILL_ID,
 )
 from app.agents.analyst.nodes import form_analyst_system_prompt
+from app.services.dashboard import PLOTLY_FIGURE_TOKEN_TEMPLATE
 
 
 def make_state(**overrides) -> AnalystState:

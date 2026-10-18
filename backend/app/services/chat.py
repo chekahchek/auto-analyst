@@ -16,7 +16,7 @@ from app.models.artifact import Artifact
 from app.models.dataset import Dataset
 from app.models.message import Message, MessageRole
 from app.models.session import Session
-from app.services.analyst import materialize_dashboard_html, save_dashboard_html
+from app.services.dashboard import materialize_dashboard_html, save_dashboard_html
 from app.services.exceptions import AnalysisFailedError, SessionNotFoundError
 
 logger = logging.getLogger(__name__)

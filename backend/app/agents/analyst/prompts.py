@@ -1,10 +1,4 @@
-import re
-
-
-PLOTLY_FIGURE_TOKEN_TEMPLATE = "__PLOTLY_FIGURE_{index}__"
-PLOTLY_FIGURE_TOKEN = re.compile(
-    re.escape(PLOTLY_FIGURE_TOKEN_TEMPLATE).replace(re.escape("{index}"), r"(\d+)")
-)
+from app.services.dashboard import PLOTLY_FIGURE_TOKEN_TEMPLATE
 
 
 # Format for the output of hypotheses generation

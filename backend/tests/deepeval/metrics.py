@@ -15,6 +15,7 @@ from deepeval.metrics import BaseMetric
 from deepeval.test_case import LLMTestCase
 
 from app.agents.analyst.tools import SUBMIT_TOOL_NAME, UPDATE_DASHBOARD_TOOL_NAME
+from app.services.dashboard import PLOTLY_FIGURE_TOKEN, figure_filename
 
 CHART_REQUIRED_FIELDS = ("title", "insight_index", "description", "figure")
 _SCRIPT_OR_STYLE_RE = re.compile(
@@ -230,11 +231,11 @@ def dashboard_html_violations(html: str, chart_count: int) -> list[str]:
         problems.append("Plotly.js is not loaded from a script src")
     if "Plotly.newPlot" in html:
         problems.append("dashboard_html must not call Plotly.newPlot")
-    if "__PLOTLY_FIGURE_" in html:
+    if PLOTLY_FIGURE_TOKEN.search(html):
         problems.append("dashboard_html contains an unreplaced chart placeholder")
 
     for index in range(chart_count):
-        if f'data-plotly-figure="fig_{index}.json"' not in html:
+        if f'data-plotly-figure="{figure_filename(index)}"' not in html:
             problems.append(f"chart {index} is not rendered")
     return problems
 
