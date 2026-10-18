@@ -11,6 +11,7 @@ from app.models.message import MessageRole
 from app.models.user import User
 from app.services.chat import run_chat_turn
 from app.services.exceptions import AnalysisFailedError, SessionNotFoundError
+from app.services.sessions import get_session_detail
 from app.services.storage import DatasetStorageService
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
@@ -18,6 +19,44 @@ router = APIRouter(prefix="/sessions", tags=["sessions"])
 
 class ChatRequest(BaseModel):
     message: str = Field(min_length=1)
+
+
+@router.get("/{session_id}")
+async def get_session(
+    session_id: UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+    storage_service: Annotated[DatasetStorageService, Depends(get_storage_service)],
+):
+    try:
+        detail = await get_session_detail(
+            db,
+            session_id=session_id,
+            user_id=current_user.id,
+            storage_root=storage_service.storage_root,
+        )
+    except SessionNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Session not found",
+        ) from exc
+
+    return {
+        "session_id": str(detail.session.id),
+        "dataset_id": str(detail.session.dataset_id),
+        "created_at": detail.session.created_at,
+        "updated_at": detail.session.updated_at,
+        "messages": [
+            {
+                "id": str(message.id),
+                "role": message.role.value,
+                "content": message.content,
+                "created_at": message.created_at,
+            }
+            for message in detail.messages
+        ],
+        "dashboard_html": detail.dashboard_html,
+    }
 
 
 @router.post("/{session_id}/chat")

@@ -134,8 +134,8 @@
 - [x] **6.3** `POST /datasets/{id}/sessions` — Create session
   Verify that the dataset belongs to the current user, create an additional session, and return its `session_id`.
 
-- [ ] **6.4** `GET /sessions/{id}` — Get session  
-  Query the session and latest artifact, then return session metadata plus the dashboard HTML with Plotly figure JSON materialized inline when a `dashboard_path` is set. The reference-based dashboard remains the persisted source artifact.
+- [x] **6.4** `GET /sessions/{id}` — Get session  
+  Query the session, its messages, and latest artifact, then return session metadata, the full message history ordered by `sequence`, and the dashboard HTML with Plotly figure JSON materialized inline when a `dashboard_path` is set. The reference-based dashboard remains the persisted source artifact.
 
 - [x] **6.5** `POST /sessions/{id}/chat` — Send message (first or follow-up)
   Query the database before graph execution and enrich `AnalystState` with the ordered conversation history, dataset path, profile, figures directory, and latest artifact metadata. Invoke the analysis graph, then only after successful processing persist the user/final assistant message pair and any new or updated artifact in one transaction. Return the response and, when generated, dashboard HTML with Plotly figure JSON materialized inline.
@@ -148,6 +148,9 @@
   
 - [ ] 6.9 Read the persisted reference-based dashboard and its session-scoped figure files, replace chart references with inline Plotly data for API responses, and never persist a second inline dashboard copy.
 
+- [ ] **6.10** `GET /sessions` to retrieve the the list of user session, sorted by Session last updated at.
+- [ ] **6.11**  `GET /sessions/{id}/dashboard`
+  Retrieve lastest dashboard HTML and remove `dashboard_html` from `GET /sessions/{id}`. The new endpoint returns the latest materialized dashboard, or 404 if none. 
 ---
 
 ## Phase 7: Observability & Cost Controls
