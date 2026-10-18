@@ -8,6 +8,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from app.agents.exceptions import SkillNotFoundError
+
 
 def parse_skill_frontmatter(content: str) -> dict[str, Any]:
     """Parse the YAML frontmatter block of a SKILL.md into a dict.
@@ -51,6 +53,14 @@ def build_list_available_skills_tool(SKILLS_DIR):
     return list_available_skills
 
 
+def load_skill(skills_dir: Path, skill_id: str) -> str:
+    skills_root = skills_dir.resolve()
+    skill_path = (skills_root / skill_id / "SKILL.md").resolve()
+    if not skill_path.is_relative_to(skills_root) or not skill_path.is_file():
+        raise SkillNotFoundError(f"Skill '{skill_id}' not found in '{skills_dir}'.")
+    return skill_path.read_text(encoding="utf-8")
+
+
 def build_read_skill_instructions_tool(
     SKILLS_DIR, output_format_instructions: str | None = None
 ):
@@ -59,14 +69,12 @@ def build_read_skill_instructions_tool(
         """Loads the full step-by-step instructions and python code template for a specific skill.
         Pass the skill_id shown in backticks from list_available_skills (e.g. 'core/profile-data')."""
         try:
-            file_path = SKILLS_DIR / skill_name / "SKILL.md"
-            with open(file_path, "r", encoding="utf-8") as f:
-                skills_content = f.read()
-            if output_format_instructions and "analytical/" in skill_name:
-                skills_content += "\n\n" + output_format_instructions
-            return skills_content
-        except FileNotFoundError:
+            skills_content = load_skill(SKILLS_DIR, skill_name)
+        except SkillNotFoundError:
             return f"Error: Skill '{skill_name}' not found."
+        if output_format_instructions and "analytical/" in skill_name:
+            skills_content += "\n\n" + output_format_instructions
+        return skills_content
 
     return read_skill_instructions
 

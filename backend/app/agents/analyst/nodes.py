@@ -38,6 +38,7 @@ from app.agents.common_tools import (
     build_execute_python_script_tool,
     build_list_available_skills_tool,
     build_read_skill_instructions_tool,
+    load_skill,
 )
 
 logger = logging.getLogger(__name__)
@@ -343,10 +344,7 @@ def storyteller_node(
     # central_qns and slides
     # After narrative is generated, the charts absolute path are added back in
 
-    read_skill_instructions = build_read_skill_instructions_tool(skills_dir)
-    skill_instructions = read_skill_instructions.invoke(
-        {"skill_name": STORYTELLER_SKILL_ID}
-    )
+    skill_instructions = load_skill(skills_dir, STORYTELLER_SKILL_ID)
     system_prompt = STORYTELLER_PROMPT_TEMPLATE.format(
         skill_instructions=skill_instructions
     )
@@ -387,10 +385,7 @@ def frontend_designer_node(
     # but the chart_index in each slide is preserved. THe frontend designer will use
     # the chart_index to convert it to __PLOTLY_FIGURE_<index>__ token.
     # Subsequently, this token will be replaced by the charts path after LLM invocation.
-    read_skill_instructions = build_read_skill_instructions_tool(skills_dir)
-    skill_instructions = read_skill_instructions.invoke(
-        {"skill_name": FRONTEND_DESIGNER_SKILL_ID}
-    )
+    skill_instructions = load_skill(skills_dir, FRONTEND_DESIGNER_SKILL_ID)
     system_prompt = FRONTEND_DESIGNER_PROMPT_TEMPLATE.format(
         skill_instructions=skill_instructions
     )
